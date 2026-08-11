@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: aqi-ncr
+    runtime: static
+    buildCommand: ""
+    staticPublishPath: .
+    autoDeployTrigger: commit

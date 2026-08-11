@@ -2,6 +2,15 @@ import json, os, time, urllib.request, urllib.parse
 from datetime import datetime, timezone, timedelta
 
 RESOURCE = "3b01bcb8-0b14-4abf-b6f2-c1bfd384ba69"
+
+# local runs: pick up DATA_GOV_KEY from a gitignored .env
+if os.path.exists(".env"):
+    with open(".env") as f:
+        for line in f:
+            if "=" in line and not line.lstrip().startswith("#"):
+                k, _, v = line.strip().partition("=")
+                os.environ.setdefault(k, v)
+
 KEY = os.environ.get("DATA_GOV_KEY", "579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b")
 FOCUS_CITIES = ["Delhi", "Noida", "Ghaziabad", "Gurugram", "Faridabad"]
 FOCUS_STATES = ["Delhi", "Uttar Pradesh", "Haryana"]
