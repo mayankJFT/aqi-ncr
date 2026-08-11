@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NCR Air Watch — daily evidence ledger</title>
-<meta name="description" content="Delhi NCR's air, measured every morning against WHO guidelines from CPCB's own sensors. A public, permanent, self-updating record.">
+<title>NCR Air Watch — a public record of the air Delhi breathes</title>
+<meta name="description" content="A machine reads the government's own air sensors every morning, benchmarks them against WHO guidelines, and writes it down. Publicly. Permanently. Fork it for your city.">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,12 +15,9 @@
     --bg:#0d0c0a; --card:rgba(245,240,232,.025); --card-2:rgba(245,240,232,.06);
     --line:rgba(201,168,76,.32); --hair:rgba(245,240,232,.12);
     --text:#f5f0e8; --muted:rgba(245,240,232,.58); --faint:rgba(245,240,232,.30);
-    --gold:#c9a84c; --accent:#c9a84c;
-    --c-pm25:#b3872c; --c-pm10:#1f9e87;      /* series — validated on #0d0c0a */
-    --breach:#c96a41; --breach-bd:rgba(184,92,56,.5); --breach-bg:rgba(184,92,56,.10);
-    --ok:#4fa396; --ok-bd:rgba(58,125,116,.5); --ok-bg:rgba(58,125,116,.10);
-    --who:#c9a84c; --grid:rgba(245,240,232,.07);
-    --tip-bg:#1a1813; --panel:#14120e; --scrim:rgba(13,12,10,.78);
+    --gold:#c9a84c;
+    --green:#1f9e87; --rust:#c96a41; --rust-bd:rgba(184,92,56,.5); --rust-bg:rgba(184,92,56,.10);
+    --green-bd:rgba(58,125,116,.5); --green-bg:rgba(58,125,116,.10);
     --halo-core:rgba(184,92,56,.40); --halo-mid:rgba(184,92,56,.15);
   }
   [data-theme="light"]{
@@ -28,12 +25,9 @@
     --bg:#f5f0e8; --card:#fbf8f1; --card-2:#ece5d8;
     --line:rgba(138,97,22,.38); --hair:rgba(13,12,10,.12);
     --text:#171410; --muted:#57503f; --faint:#8a8272;
-    --gold:#8a6116; --accent:#8a6116;
-    --c-pm25:#9a6a08; --c-pm10:#068f66;      /* series — validated on #f5f0e8 */
-    --breach:#a3401f; --breach-bd:rgba(163,64,31,.5); --breach-bg:rgba(163,64,31,.08);
-    --ok:#1f5c50; --ok-bd:rgba(31,92,80,.5); --ok-bg:rgba(31,92,80,.08);
-    --who:#8a6116; --grid:rgba(13,12,10,.08);
-    --tip-bg:#fbf8f1; --panel:#fbf8f1; --scrim:rgba(13,12,10,.55);
+    --gold:#8a6116;
+    --green:#068f66; --rust:#a3401f; --rust-bd:rgba(163,64,31,.5); --rust-bg:rgba(163,64,31,.08);
+    --green-bd:rgba(6,143,102,.5); --green-bg:rgba(6,143,102,.08);
     --halo-core:rgba(163,64,31,.30); --halo-mid:rgba(163,64,31,.12);
   }
   @media (prefers-color-scheme: light){
@@ -42,14 +36,13 @@
       --bg:#f5f0e8; --card:#fbf8f1; --card-2:#ece5d8;
       --line:rgba(138,97,22,.38); --hair:rgba(13,12,10,.12);
       --text:#171410; --muted:#57503f; --faint:#8a8272;
-      --gold:#8a6116; --accent:#8a6116;
-      --c-pm25:#9a6a08; --c-pm10:#068f66;
-      --breach:#a3401f; --breach-bd:rgba(163,64,31,.5); --breach-bg:rgba(163,64,31,.08);
-      --ok:#1f5c50; --ok-bd:rgba(31,92,80,.5); --ok-bg:rgba(31,92,80,.08);
-      --who:#8a6116; --grid:rgba(13,12,10,.08);
-      --tip-bg:#fbf8f1; --panel:#fbf8f1; --scrim:rgba(13,12,10,.55);
+      --gold:#8a6116;
+      --green:#068f66; --rust:#a3401f; --rust-bd:rgba(163,64,31,.5); --rust-bg:rgba(163,64,31,.08);
+      --green-bd:rgba(6,143,102,.5); --green-bg:rgba(6,143,102,.08);
       --halo-core:rgba(163,64,31,.30); --halo-mid:rgba(163,64,31,.12);
     }
+    :root:not([data-theme="dark"]) .icon-sun{display:none}
+    :root:not([data-theme="dark"]) .icon-moon{display:block}
   }
   *{margin:0;padding:0;box-sizing:border-box}
   html{scroll-behavior:smooth}
@@ -68,184 +61,129 @@
   .hi{font-family:'Tiro Devanagari Hindi',serif}
   .wrap{max-width:1120px; margin:0 auto; padding:0 28px}
   a{color:var(--gold)}
-  a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--gold); outline-offset:3px}
+  a:focus-visible,button:focus-visible,select:focus-visible{outline:2px solid var(--gold); outline-offset:3px}
 
-  /* ---------- topbar ---------- */
-  .topbar{
-    position:sticky; top:0; z-index:20; backdrop-filter:blur(10px);
-    background:color-mix(in srgb, var(--bg) 84%, transparent);
-    border-bottom:1px solid var(--line);
-  }
-  .topbar-in{display:flex; align-items:center; gap:16px; padding:13px 0}
-  .brand{font-style:italic; font-weight:500; font-size:21px; letter-spacing:.01em}
-  .brand .hi{font-style:normal; font-size:13.5px; color:var(--muted); margin-left:10px}
-  .top-date{margin-left:auto; font-family:'DM Mono',monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--muted)}
-  .theme-btn{
-    display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px;
-    background:transparent; border:1px solid var(--line); color:var(--muted); cursor:pointer;
-    transition:color .2s,border-color .2s;
-  }
+  /* topbar */
+  .topbar{position:sticky; top:0; z-index:20; backdrop-filter:blur(10px);
+    background:color-mix(in srgb, var(--bg) 84%, transparent); border-bottom:1px solid var(--line)}
+  .topbar-in{display:flex; align-items:center; gap:22px; padding:13px 0}
+  .brand{font-style:italic; font-weight:500; font-size:21px}
+  .nav{margin-left:auto; display:flex; align-items:center; gap:20px; font-family:'DM Mono',monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase}
+  .nav a{color:var(--muted); text-decoration:none; padding:6px 0}
+  .nav a:hover{color:var(--gold)}
+  .theme-btn{display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px;
+    background:transparent; border:1px solid var(--line); color:var(--muted); cursor:pointer; transition:color .2s,border-color .2s}
   .theme-btn:hover{color:var(--gold); border-color:var(--gold)}
   [data-theme="light"] .icon-sun{display:none}
   .icon-moon{display:none}
   [data-theme="light"] .icon-moon{display:block}
-  @media (prefers-color-scheme: light){
-    :root:not([data-theme="dark"]) .icon-sun{display:none}
-    :root:not([data-theme="dark"]) .icon-moon{display:block}
-  }
   [data-theme="dark"] .icon-sun{display:block !important}
   [data-theme="dark"] .icon-moon{display:none !important}
 
-  /* ---------- hero ---------- */
-  .hero{display:grid; grid-template-columns:1.25fr .75fr; gap:40px; align-items:center; padding:72px 0 30px}
-  .eyebrow{font-family:'DM Mono',monospace; font-size:11px; letter-spacing:.28em; text-transform:uppercase; color:var(--gold); margin-bottom:26px}
-  h1{font-weight:500; font-size:clamp(38px,5.6vw,64px); line-height:1.04; letter-spacing:-.01em}
+  /* hero */
+  .hero{position:relative; display:grid; grid-template-columns:1.2fr .8fr; gap:40px; align-items:center; padding:88px 0 70px; min-height:78vh}
+  .particles{position:absolute; inset:0; pointer-events:none; z-index:0; overflow:hidden}
+  .particles svg{width:100%; height:100%}
+  .hero-copy{position:relative; z-index:1}
+  .eyebrow{font-family:'DM Mono',monospace; font-size:11px; letter-spacing:.28em; text-transform:uppercase; color:var(--gold); margin-bottom:28px}
+  h1{font-weight:500; font-size:clamp(40px,6.2vw,72px); line-height:1.03; letter-spacing:-.01em}
   h1 em{font-style:italic; color:var(--gold)}
-  .sub-hi{font-family:'Tiro Devanagari Hindi',serif; color:var(--muted); font-size:clamp(16px,2vw,20px); margin-top:14px}
-  .kpi-row{display:flex; flex-wrap:wrap; gap:12px 28px; margin-top:30px; font-family:'DM Mono',monospace; font-size:12px; color:var(--muted)}
-  .kpi-row b{color:var(--text); font-weight:500}
-  .kpi-row .k-bad{color:var(--breach)} .kpi-row .k-ok{color:var(--ok)}
-  .verdict{position:relative; width:min(300px,70vw); aspect-ratio:1; margin:0 auto; display:flex; align-items:center; justify-content:center; text-align:center}
+  .sub-hi{font-family:'Tiro Devanagari Hindi',serif; color:var(--muted); font-size:clamp(16px,2.1vw,21px); margin-top:16px}
+  .hero-sub{color:var(--muted); font-size:clamp(18px,2vw,22px); margin-top:18px; max-width:48ch}
+  .ctas{display:flex; flex-wrap:wrap; gap:14px; margin-top:34px}
+  .btn{display:inline-flex; align-items:center; gap:10px; font-family:'DM Mono',monospace; font-size:11.5px;
+    letter-spacing:.18em; text-transform:uppercase; padding:14px 22px; text-decoration:none; border:1px solid; transition:all .2s; cursor:pointer}
+  .btn-gold{color:var(--bg); background:var(--gold); border-color:var(--gold)}
+  .btn-gold:hover{filter:brightness(1.08)}
+  .btn-ghost{color:var(--gold); background:transparent; border-color:var(--line)}
+  .btn-ghost:hover{border-color:var(--gold)}
+  .verdict{position:relative; width:min(300px,68vw); aspect-ratio:1; margin:0 auto; display:flex; align-items:center; justify-content:center; text-align:center; z-index:1}
   .halo{position:absolute; inset:0; border-radius:50%;
     background:radial-gradient(circle, var(--halo-core) 0%, var(--halo-mid) 45%, transparent 70%);
     animation:breathe 5s ease-in-out infinite; filter:blur(2px)}
   .halo-ring{position:absolute; inset:12%; border-radius:50%; border:1px solid var(--line)}
   @keyframes breathe{0%,100%{transform:scale(.86);opacity:.75}45%{transform:scale(1.06);opacity:1}60%{transform:scale(1.06);opacity:1}}
-  .big-mult{font-size:clamp(62px,9vw,92px); font-weight:500; line-height:1; letter-spacing:-.02em}
+  .big-mult{font-size:clamp(58px,8vw,86px); font-weight:500; line-height:1}
   .big-mult .x{font-size:.45em; font-style:italic; color:var(--gold)}
   .verdict-label{font-family:'DM Mono',monospace; font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--muted); margin-top:12px; line-height:1.9}
-  .verdict-city{font-style:italic; font-size:20px; margin-top:2px}
+  .verdict-city{font-style:italic; font-size:19px; margin-top:2px}
   .verdict-inner{position:relative; z-index:1}
-  .stale{display:none; font-family:'DM Mono',monospace; font-size:11.5px; color:var(--breach); letter-spacing:.12em; margin-top:18px}
 
-  /* ---------- sections ---------- */
-  section{padding:56px 0 6px}
-  .sec-head{display:flex; align-items:baseline; gap:16px; border-bottom:1px solid var(--line); padding-bottom:12px; margin-bottom:28px}
+  /* drift animations for PM particles */
+  @keyframes drift1{from{transform:translate(0,0)}50%{transform:translate(26px,-14px)}to{transform:translate(0,0)}}
+  @keyframes drift2{from{transform:translate(0,0)}50%{transform:translate(-20px,18px)}to{transform:translate(0,0)}}
+  @keyframes drift3{from{transform:translate(0,0)}50%{transform:translate(14px,20px)}to{transform:translate(0,0)}}
+  .p1{animation:drift1 14s ease-in-out infinite}
+  .p2{animation:drift2 18s ease-in-out infinite}
+  .p3{animation:drift3 22s ease-in-out infinite}
+
+  /* sections */
+  section{padding:64px 0 10px}
+  .sec-head{display:flex; align-items:baseline; gap:16px; border-bottom:1px solid var(--line); padding-bottom:12px; margin-bottom:30px}
   .sec-head h2{font-weight:500; font-style:italic; font-size:clamp(24px,3.4vw,30px)}
   .sec-head .tag{margin-left:auto; font-family:'DM Mono',monospace; font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--gold); white-space:nowrap}
 
-  .card{background:var(--card); border:1px solid var(--line); padding:24px 26px}
+  /* how it works */
+  .steps{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:20px}
+  .step{background:var(--card); border:1px solid var(--line); padding:26px 24px; position:relative}
+  .step .n{font-family:'DM Mono',monospace; font-size:11px; color:var(--gold); letter-spacing:.2em}
+  .step svg{display:block; margin:18px 0 14px; color:var(--gold)}
+  .step h3{font-style:italic; font-weight:500; font-size:23px; margin-bottom:8px}
+  .step p{color:var(--muted); font-size:16.5px}
 
-  /* tiles */
-  .tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:20px}
-  .tile{background:var(--card); border:1px solid var(--line); padding:22px 22px 18px; display:flex; flex-direction:column; gap:10px; transition:border-color .2s}
-  .tile:hover{border-color:var(--gold)}
-  .tile-top{display:flex; align-items:center; gap:8px}
-  .tile-top h3{font-style:italic; font-weight:500; font-size:24px}
-  .flag{margin-left:auto; font-family:'DM Mono',monospace; font-size:9.5px; letter-spacing:.2em; padding:3px 8px; border:1px solid}
-  .flag.breach{color:var(--breach); border-color:var(--breach-bd); background:var(--breach-bg)}
-  .flag.ok{color:var(--ok); border-color:var(--ok-bd); background:var(--ok-bg)}
-  .tile-mult{font-family:'DM Mono',monospace; font-size:31px; font-weight:500; line-height:1}
-  .tile-mult .x{font-size:.5em; color:var(--muted)}
-  .delta{display:inline-flex; align-items:center; gap:4px; font-family:'DM Mono',monospace; font-size:11px; color:var(--muted)}
-  .delta.up{color:var(--breach)} .delta.down{color:var(--ok)}
-  .tile-rows{display:flex; flex-direction:column; gap:5px; font-family:'DM Mono',monospace; font-size:11.5px; color:var(--muted); border-top:1px dashed var(--hair); padding-top:12px}
-  .tile-rows .r{display:flex; justify-content:space-between}
-  .tile-rows .r b{color:var(--text); font-weight:400}
-  .tile-note{font-family:'DM Mono',monospace; font-size:11px; color:var(--faint)}
-
-  /* charts */
-  .legend{display:flex; flex-wrap:wrap; gap:20px; align-items:center; margin-bottom:20px; font-family:'DM Mono',monospace; font-size:11.5px; letter-spacing:.1em; color:var(--muted)}
-  .legend .sw{display:inline-block; width:15px; height:3px; margin-right:8px; vertical-align:middle}
-  .legend .sw-who{display:inline-block; width:15px; border-top:2px dashed var(--who); margin-right:8px; vertical-align:middle}
-  .charts{display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:20px}
-  .chart-card{background:var(--card); border:1px solid var(--line); padding:20px 20px 12px}
-  .chart-card h3{font-style:italic; font-weight:500; font-size:22px; margin-bottom:10px}
-  .chart-card svg{display:block; width:100%; height:auto; overflow:visible}
-  .chart-note{font-family:'DM Mono',monospace; font-size:10.5px; color:var(--faint); margin-top:16px; letter-spacing:.04em}
-  .viz-tip{
-    position:fixed; z-index:30; pointer-events:none; display:none;
-    background:var(--tip-bg); border:1px solid var(--line); padding:10px 12px;
-    font-family:'DM Mono',monospace; font-size:11px; line-height:1.8; color:var(--text); max-width:250px;
+  /* calculator */
+  .calc{display:grid; grid-template-columns:.9fr 1.1fr; gap:20px}
+  .calc-in,.calc-out{background:var(--card); border:1px solid var(--line); padding:28px 26px}
+  .calc-in label{display:block; font-family:'DM Mono',monospace; font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--muted); margin-bottom:10px}
+  .calc-in select{
+    width:100%; padding:13px 14px; font-family:'DM Mono',monospace; font-size:13px;
+    background:var(--card-2); color:var(--text); border:1px solid var(--line); cursor:pointer;
   }
-  .viz-tip .tip-date{color:var(--gold); font-size:10px; letter-spacing:.14em; text-transform:uppercase}
-  .viz-tip .tip-row{display:flex; align-items:center; gap:8px}
-  .viz-tip .tip-row .dot{width:8px; height:8px; border-radius:50%; flex:none}
-  .viz-tip .tip-row b{margin-left:auto; font-weight:400}
-  .tableview{margin-top:22px}
-  .tableview summary{font-family:'DM Mono',monospace; font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--muted); cursor:pointer}
-  .tableview summary:hover{color:var(--gold)}
-  .tablewrap{overflow-x:auto}
-  table{width:100%; border-collapse:collapse; margin-top:12px; font-family:'DM Mono',monospace; font-size:11.5px}
-  th,td{text-align:right; padding:8px 10px; border-bottom:1px dashed var(--hair); color:var(--muted); white-space:nowrap}
-  th{color:var(--gold); font-weight:400; font-size:10px; letter-spacing:.12em; text-transform:uppercase}
-  th:first-child,td:first-child{text-align:left}
-  td b{color:var(--text); font-weight:400}
+  .calc-in select option{ background:var(--bg); color:var(--text); }
+  .calc-in p{color:var(--faint); font-size:15px; margin-top:16px}
+  .calc-out .co-row{display:flex; align-items:baseline; gap:14px; padding:13px 0; border-bottom:1px dashed var(--hair)}
+  .calc-out .co-row:last-child{border-bottom:none}
+  .co-label{font-family:'DM Mono',monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); width:46%}
+  .co-val{font-family:'DM Mono',monospace; font-size:20px; color:var(--text)}
+  .co-val small{font-size:12px; color:var(--muted)}
+  .co-val.bad{color:var(--rust)} .co-val.good{color:var(--green)}
+  .calc-note{font-family:'DM Mono',monospace; font-size:10.5px; color:var(--faint); margin-top:16px; letter-spacing:.04em; line-height:2}
 
-  /* guidance */
-  .badge{display:inline-flex; align-items:center; gap:6px; font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.16em; padding:4px 10px; border:1px solid}
-  .badge.wait{color:var(--gold); border-color:var(--line); background:color-mix(in srgb, var(--gold) 8%, transparent)}
-  .badge.over{color:var(--breach); border-color:var(--breach-bd); background:var(--breach-bg)}
-  .badge.ok{color:var(--ok); border-color:var(--ok-bd); background:var(--ok-bg)}
-  #guidance-body ul{margin:10px 0 4px 20px; color:var(--muted); font-size:17px}
-  #guidance-body li{margin-bottom:6px}
-  #guidance-body .num{font-family:'DM Mono',monospace; font-size:.85em}
+  /* impact metrics */
+  .metrics{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:20px}
+  .metric{background:var(--card); border:1px solid var(--line); padding:24px 22px; text-align:center}
+  .metric .m-val{font-family:'DM Mono',monospace; font-size:clamp(30px,4vw,42px); font-weight:500; line-height:1.1}
+  .metric .m-val.rust{color:var(--rust)} .metric .m-val.gold{color:var(--gold)}
+  .metric .m-label{font-family:'DM Mono',monospace; font-size:10.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--muted); margin-top:10px; line-height:1.9}
 
-  /* ranking */
-  .rank-list{list-style:none}
-  .rank-list li{display:grid; grid-template-columns:40px 1fr minmax(110px,38%) 96px; gap:14px; align-items:center; padding:12px 2px; border-bottom:1px dashed var(--hair)}
-  .rank-list li:last-child{border-bottom:none}
-  .rk-num{font-family:'DM Mono',monospace; font-size:11.5px; color:var(--gold)}
-  .rk-city{font-size:20px; font-weight:500}
-  .rk-city.is-focus{font-style:italic; color:var(--gold)}
-  .rk-track{height:4px; background:var(--card-2); overflow:hidden}
-  .rk-bar{height:100%; background:var(--breach)}
-  .rk-val{font-family:'DM Mono',monospace; font-size:11.5px; color:var(--muted); text-align:right}
+  /* trust markers */
+  .trust{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:20px}
+  .badge-card{display:block; background:var(--card); border:1px solid var(--line); padding:22px; text-decoration:none; transition:border-color .2s}
+  .badge-card:hover{border-color:var(--gold)}
+  .badge-card .b-top{display:flex; align-items:center; gap:10px; font-family:'DM Mono',monospace; font-size:10.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--gold)}
+  .badge-card p{color:var(--muted); font-size:16px; margin-top:10px}
+  .badge-card .proof{font-family:'DM Mono',monospace; font-size:10.5px; color:var(--faint); margin-top:12px; letter-spacing:.08em}
 
-  /* complaints */
-  .comp-empty{color:var(--muted); font-size:17px}
-  .comp-note{font-family:'DM Mono',monospace; font-size:11px; line-height:2; color:var(--faint); margin-top:16px; max-width:80ch}
-  .view-btn{
-    font-family:'DM Mono',monospace; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase;
-    background:transparent; border:1px solid var(--line); color:var(--gold); padding:5px 12px; cursor:pointer;
-    transition:border-color .2s,color .2s;
-  }
-  .view-btn:hover{border-color:var(--gold)}
+  /* closing CTA */
+  .closing{text-align:center; padding:80px 0 30px}
+  .closing h2{font-weight:500; font-style:italic; font-size:clamp(28px,4.4vw,44px); max-width:24ch; margin:0 auto}
+  .closing h2 em{color:var(--gold)}
+  .closing .hi{display:block; color:var(--muted); font-size:18px; margin-top:16px}
+  .closing .ctas{justify-content:center}
 
-  /* draft modal */
-  .modal{position:fixed; inset:0; z-index:50; display:none; align-items:flex-start; justify-content:center; padding:5vh 20px; background:var(--scrim); backdrop-filter:blur(4px)}
-  .modal.open{display:flex}
-  .modal-doc{
-    background:var(--panel); border:1px solid var(--line); max-width:780px; width:100%;
-    max-height:88vh; overflow-y:auto; padding:40px 44px 44px; position:relative;
-  }
-  .modal-close{
-    position:sticky; top:0; float:right; margin:-24px -28px 0 0;
-    width:40px; height:40px; display:inline-flex; align-items:center; justify-content:center;
-    background:var(--panel); border:1px solid var(--line); color:var(--muted); cursor:pointer;
-  }
-  .modal-close:hover{color:var(--gold); border-color:var(--gold)}
-  .doc h1{font-size:28px; font-weight:500; font-style:italic; margin-bottom:16px; line-height:1.2}
-  .doc h2{font-size:21px; font-weight:500; font-style:italic; margin:26px 0 10px; color:var(--gold)}
-  .doc h3{font-size:19px; font-weight:600; margin:20px 0 8px}
-  .doc p{margin:12px 0; color:var(--text)}
-  .doc blockquote{border-left:2px solid var(--gold); padding:8px 16px; margin:14px 0; color:var(--muted); background:var(--card)}
-  .doc ul{margin:10px 0 10px 22px}
-  .doc li{margin-bottom:6px}
-  .doc table{margin:14px 0}
-  .doc a{word-break:break-all}
-  .doc-loading{font-family:'DM Mono',monospace; font-size:12px; color:var(--muted); letter-spacing:.14em}
-
-  /* method + footer */
-  .method{font-family:'DM Mono',monospace; font-size:12.5px; line-height:2.1; color:var(--muted); max-width:66ch}
-  footer{border-top:1px solid var(--line); margin-top:60px; padding:34px 0 54px}
+  footer{border-top:1px solid var(--line); margin-top:70px; padding:34px 0 54px}
   .foot-row{display:flex; flex-wrap:wrap; gap:14px 26px; font-family:'DM Mono',monospace; font-size:11.5px; letter-spacing:.14em; text-transform:uppercase}
   .foot-row a{color:var(--muted); text-decoration:none; border-bottom:1px solid transparent; padding-bottom:2px}
   .foot-row a:hover{color:var(--gold); border-color:var(--line)}
   .foot-sign{margin-top:24px; font-style:italic; font-size:17px; color:var(--faint)}
 
-  @media (max-width:860px){
-    .hero{grid-template-columns:1fr; gap:16px}
-    .verdict{margin-top:10px}
+  @media (max-width:900px){
+    .hero{grid-template-columns:1fr; min-height:auto; padding-top:64px}
+    .calc{grid-template-columns:1fr}
   }
-  @media (max-width:560px){
-    .rank-list li{grid-template-columns:30px 1fr 86px}
-    .rk-track{display:none}
-    .frame{inset:8px}
-    .modal-doc{padding:28px 22px}
-  }
+  @media (max-width:560px){ .frame{inset:8px} }
   @media (prefers-reduced-motion:reduce){
-    .halo{animation:none; transform:scale(1)}
+    .halo,.p1,.p2,.p3{animation:none}
     html{scroll-behavior:auto}
     *{transition:none !important}
   }
@@ -256,115 +194,171 @@
 
 <div class="topbar">
   <div class="wrap topbar-in">
-    <span class="brand">NCR Air Watch<span class="hi">दिल्ली की हवा, रोज़ दर्ज</span></span>
-    <span class="top-date" id="dateline">loading…</span>
-    <button class="theme-btn" id="theme-toggle" aria-label="Toggle color theme">
-      <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
-      <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
-    </button>
+    <span class="brand">NCR Air Watch</span>
+    <nav class="nav" aria-label="Main">
+      <a href="ledger.html">Today's ledger</a>
+      <a href="https://github.com/mayankJFT/aqi-ncr" rel="noopener">GitHub</a>
+      <button class="theme-btn" id="theme-toggle" aria-label="Toggle color theme">
+        <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      </button>
+    </nav>
   </div>
 </div>
 
 <main class="wrap">
 
   <header class="hero">
-    <div>
-      <p class="eyebrow">Daily evidence ledger · CPCB sensors · WHO benchmark</p>
-      <h1>The air over <em>Delhi NCR</em>, measured every morning.</h1>
+    <div class="particles" aria-hidden="true">
+      <svg viewBox="0 0 1100 700" preserveAspectRatio="xMidYMid slice">
+        <!-- wind contours -->
+        <path d="M-20 180 C 200 140, 420 220, 660 170 S 1060 120, 1140 160" fill="none" stroke="var(--line)" stroke-width="1" opacity=".35"/>
+        <path d="M-20 400 C 240 360, 480 450, 720 395 S 1080 340, 1140 380" fill="none" stroke="var(--line)" stroke-width="1" opacity=".22"/>
+        <path d="M-20 590 C 260 550, 500 640, 760 585 S 1090 540, 1140 570" fill="none" stroke="var(--line)" stroke-width="1" opacity=".14"/>
+        <!-- PM10 particles (10 µm) and PM2.5 (2.5 µm) at true 4:1 relative scale -->
+        <g class="p1" fill="var(--gold)" opacity=".30">
+          <circle cx="180" cy="120" r="8"/><circle cx="820" cy="90" r="8"/><circle cx="560" cy="300" r="8"/>
+        </g>
+        <g class="p2" fill="var(--green)" opacity=".30">
+          <circle cx="320" cy="480" r="8"/><circle cx="940" cy="420" r="8"/>
+        </g>
+        <g class="p3" fill="var(--gold)" opacity=".45">
+          <circle cx="240" cy="260" r="2"/><circle cx="420" cy="140" r="2"/><circle cx="700" cy="220" r="2"/>
+          <circle cx="880" cy="300" r="2"/><circle cx="120" cy="420" r="2"/><circle cx="520" cy="520" r="2"/>
+          <circle cx="760" cy="480" r="2"/><circle cx="1000" cy="180" r="2"/><circle cx="640" cy="80" r="2"/>
+        </g>
+      </svg>
+    </div>
+    <div class="hero-copy">
+      <p class="eyebrow">A public record of the air Delhi breathes</p>
+      <h1>Officials can argue with an activist. Not with <em>their own sensors.</em></h1>
       <p class="sub-hi hi">दिल्ली की हवा — रोज़ मापी गई, रोज़ दर्ज की गई।</p>
-      <div class="kpi-row">
-        <span>cities in breach <b id="kpi-breach" class="k-bad">—</b>/<span id="kpi-total">5</span></span>
-        <span>worst air <b id="kpi-worst">—</b> <span id="kpi-worst-sub"></span></span>
-        <span>days recorded <b id="kpi-days">—</b></span>
+      <p class="hero-sub">Every morning at seven, a machine reads the government's CPCB monitors across Delhi NCR, holds them against WHO health guidelines, and writes the verdict into a permanent public ledger. No servers. No cost. No human in the loop.</p>
+      <div class="ctas">
+        <a class="btn btn-gold" href="ledger.html">See today's ledger</a>
+        <a class="btn btn-ghost" href="https://github.com/mayankJFT/aqi-ncr" rel="noopener">Fork it for your city</a>
       </div>
-      <p class="stale" id="stale">⚠ could not load today's data — showing last saved reading</p>
     </div>
     <div class="verdict" role="img" aria-label="Today's PM2.5 level in Delhi compared to the WHO safe limit">
       <div class="halo" id="halo"></div>
       <div class="halo-ring" aria-hidden="true"></div>
       <div class="verdict-inner">
         <div class="big-mult"><span id="mult">—</span><span class="x">×</span></div>
-        <div class="verdict-label">the WHO safe limit<br>PM2.5 · 24-hour guideline</div>
-        <div class="verdict-city" id="verdict-city">Delhi, today</div>
+        <div class="verdict-label">the WHO safe limit<br>PM2.5 · Delhi · today</div>
+        <div class="verdict-city" id="verdict-date"></div>
       </div>
     </div>
   </header>
 
-  <section aria-labelledby="guide-h">
+  <section aria-labelledby="how-h">
     <div class="sec-head">
-      <h2 id="guide-h">What today's air means</h2>
-      <span class="tag">general guidance · not medical advice</span>
+      <h2 id="how-h">How it works</h2>
+      <span class="tag">every morning · 07:00 IST</span>
     </div>
-    <div class="card" id="guidance-body"></div>
-  </section>
-
-  <section aria-labelledby="today-h">
-    <div class="sec-head">
-      <h2 id="today-h">Today's readings</h2>
-      <span class="tag">station averages · vs WHO 24-h guideline</span>
-    </div>
-    <div class="tiles" id="tiles"></div>
-  </section>
-
-  <section aria-labelledby="history-h">
-    <div class="sec-head">
-      <h2 id="history-h">The record so far</h2>
-      <span class="tag">one point per morning · shared scale</span>
-    </div>
-    <div class="legend" aria-hidden="true">
-      <span><span class="sw" style="background:var(--c-pm25)"></span>PM2.5</span>
-      <span><span class="sw" style="background:var(--c-pm10)"></span>PM10</span>
-      <span><span class="sw-who"></span>WHO limit (1×)</span>
-    </div>
-    <div class="charts" id="charts"></div>
-    <p class="chart-note">Each point is one morning's city-wide station average, as a multiple of that pollutant's WHO 24-hour guideline. The record grows one point per day.</p>
-    <details class="tableview">
-      <summary>Table view — full history</summary>
-      <div class="tablewrap" id="history-table"></div>
-    </details>
-  </section>
-
-  <section aria-labelledby="rank-h">
-    <div class="sec-head">
-      <h2 id="rank-h">The region's heaviest air today</h2>
-      <span class="tag">Delhi · UP · Haryana — PM2.5 worst ten</span>
-    </div>
-    <div class="card"><ol class="rank-list" id="ranking"></ol></div>
-  </section>
-
-  <section aria-labelledby="comp-h">
-    <div class="sec-head">
-      <h2 id="comp-h">Complaint ledger</h2>
-      <span class="tag">drafts · 21-day response clock</span>
-    </div>
-    <div class="card">
-      <div id="complaints-body" class="comp-empty">No complaint drafts yet.</div>
-      <p class="comp-note">On every breach day, a formal complaint draft citing CPCB's own readings is generated and committed to the public repository — addressed to the responsible authorities (CAQM, CPCB, DPCC, UPPCB, HSPCB), with suggested delivery channels inside each draft. Drafts are never sent automatically: review one, file it via CPGRAMS or the relevant board, and the 21-day response clock starts from your filing date.</p>
+    <div class="steps">
+      <div class="step">
+        <span class="n">01</span>
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M12 3v3m6.4-.4-2.2 2.2M21 12h-3M4 12H2m4.6-6.4 2.2 2.2"/><circle cx="12" cy="14" r="4"/><path d="M6 21a7.5 7.5 0 0 1 12 0"/></svg>
+        <h3>Read</h3>
+        <p>The government's own CPCB monitoring stations are read through the open data platform — every station, every pollutant, for five NCR cities.</p>
+      </div>
+      <div class="step">
+        <span class="n">02</span>
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M12 3v18M7 6h10M5 10l-2 5a3 3 0 0 0 6 0l-2-5M19 10l-2 5a3 3 0 0 0 6 0l-2-5M7 21h10"/></svg>
+        <h3>Benchmark</h3>
+        <p>City averages are held against the WHO 2021 24-hour guidelines — the standard a human body can bear, not a relaxed local norm.</p>
+      </div>
+      <div class="step">
+        <span class="n">03</span>
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15A2.5 2.5 0 0 0 6.5 22H20v-5"/><path d="M9 7h7M9 11h7"/></svg>
+        <h3>Record</h3>
+        <p>The verdict is committed to a public repository — charts, reports, and on breach days a drafted complaint with its 21-day response clock tracked in the open.</p>
+      </div>
     </div>
   </section>
 
-  <section aria-labelledby="method-h">
+  <section aria-labelledby="calc-h">
     <div class="sec-head">
-      <h2 id="method-h">Method</h2>
-      <span class="tag">open data · open code</span>
+      <h2 id="calc-h">What are you breathing today?</h2>
+      <span class="tag">live · from today's ledger</span>
     </div>
-    <p class="method">
-      Source: Central Pollution Control Board real-time monitoring, via the
-      <a href="https://data.gov.in" rel="noopener">Open Government Data Platform</a>.
-      Readings are pulled daily at 07:00 IST, station values averaged per city,
-      sensor artefacts (≤0 or &gt;1500 µg/m³) discarded, then benchmarked against
-      WHO 2021 24-hour air quality guidelines. Every reading, chart and complaint
-      draft in this ledger is generated and committed automatically, every morning, to
-      <a href="https://github.com/mayankJFT/aqi-ncr" rel="noopener">github.com/mayankJFT/aqi-ncr</a> —
-      open data in, open record out.
-    </p>
+    <div class="calc">
+      <div class="calc-in">
+        <label for="city-select">Your city</label>
+        <select id="city-select">
+          <option>Delhi</option><option>Noida</option><option>Ghaziabad</option>
+          <option>Gurugram</option><option>Faridabad</option>
+        </select>
+        <p>Reads today's PM2.5 average for your city straight from the ledger and translates it into terms a body understands.</p>
+      </div>
+      <div class="calc-out">
+        <div class="co-row"><span class="co-label">PM2.5 today</span><span class="co-val" id="c-pm">—</span></div>
+        <div class="co-row"><span class="co-label">vs WHO guideline</span><span class="co-val" id="c-mult">—</span></div>
+        <div class="co-row"><span class="co-label">≈ cigarettes today</span><span class="co-val" id="c-cig">—</span></div>
+        <div class="co-row"><span class="co-label">a year at this level</span><span class="co-val" id="c-year">—</span></div>
+        <p class="calc-note">Cigarette equivalence uses the Berkeley Earth rule of thumb: ~22 µg/m³ of PM2.5 over 24 hours ≈ one cigarette. An approximation for scale, not a medical measure.</p>
+      </div>
+    </div>
   </section>
+
+  <section aria-labelledby="impact-h">
+    <div class="sec-head">
+      <h2 id="impact-h">The record so far</h2>
+      <span class="tag">grows every morning</span>
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="m-val" id="m-days">—</div><div class="m-label">mornings recorded</div></div>
+      <div class="metric"><div class="m-val rust" id="m-breach">—</div><div class="m-label">breach days documented</div></div>
+      <div class="metric"><div class="m-val gold" id="m-complaints">—</div><div class="m-label">complaint drafts generated</div></div>
+      <div class="metric"><div class="m-val rust" id="m-worst">—</div><div class="m-label" id="m-worst-label">worst PM2.5 on record</div></div>
+      <div class="metric"><div class="m-val" id="m-cities">5</div><div class="m-label">cities monitored</div></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="trust-h">
+    <div class="sec-head">
+      <h2 id="trust-h">Nothing to trust — everything to verify</h2>
+      <span class="tag">no badges we didn't earn</span>
+    </div>
+    <div class="trust">
+      <a class="badge-card" href="https://data.gov.in" rel="noopener">
+        <span class="b-top"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>Government data</span>
+        <p>Every reading comes from CPCB's own real-time stations, via the official Open Government Data Platform.</p>
+        <span class="proof">data.gov.in →</span>
+      </a>
+      <a class="badge-card" href="https://www.who.int/publications/i/item/9789240034228" rel="noopener">
+        <span class="b-top"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3.6 9h16.8M3.6 15h16.8M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18"/></svg>WHO benchmark</span>
+        <p>Benchmarked against the WHO 2021 global air quality guidelines — the health standard, not the lenient one.</p>
+        <span class="proof">WHO 2021 guidelines →</span>
+      </a>
+      <a class="badge-card" href="https://github.com/mayankJFT/aqi-ncr" rel="noopener">
+        <span class="b-top"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m10 13-2 2 2 2m4-4 2 2-2 2M14 4l-4 16"/><rect x="2" y="2" width="20" height="20" rx="3"/></svg>100% open source</span>
+        <p>The code, the data, every report and every complaint draft — all public, all auditable, down to the commit.</p>
+        <span class="proof">github.com/mayankJFT/aqi-ncr →</span>
+      </a>
+      <a class="badge-card" href="https://github.com/mayankJFT/aqi-ncr/blob/main/.github/workflows/daily.yml" rel="noopener">
+        <span class="b-top"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 3.5"/></svg>Runs itself daily</span>
+        <p>07:00 IST, every day, whether anyone is watching or not. No servers, no cost, no human in the loop.</p>
+        <span class="proof">the workflow, verbatim →</span>
+      </a>
+    </div>
+  </section>
+
+  <div class="closing">
+    <h2>Built for the months when bad air <em>doesn't make the news.</em></h2>
+    <span class="hi">यह रिकॉर्ड अगली पीढ़ियों के लिए है।</span>
+    <div class="ctas">
+      <a class="btn btn-gold" href="ledger.html">See today's ledger</a>
+      <a class="btn btn-ghost" href="https://github.com/mayankJFT/aqi-ncr" rel="noopener">Fork it for your city</a>
+    </div>
+  </div>
 
 </main>
 
 <footer>
   <div class="wrap">
     <div class="foot-row">
+      <a href="ledger.html">Today's ledger</a>
       <a href="https://github.com/mayankJFT/aqi-ncr" rel="noopener">GitHub — aqi-ncr</a>
       <a href="https://data.gov.in" rel="noopener">Data — data.gov.in</a>
       <a href="https://www.who.int/publications/i/item/9789240034228" rel="noopener">WHO 2021 guidelines</a>
@@ -373,25 +367,12 @@
   </div>
 </footer>
 
-<div class="viz-tip" id="viz-tip" role="status" aria-live="polite"></div>
-
-<div class="modal" id="doc-modal" role="dialog" aria-modal="true" aria-label="Complaint draft">
-  <div class="modal-doc">
-    <button class="modal-close" id="modal-close" aria-label="Close draft">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
-    </button>
-    <div class="doc" id="doc-body"><p class="doc-loading">LOADING…</p></div>
-  </div>
-</div>
-
 <script>
 (function(){
-  var WHO = {"PM2.5":15, "PM10":45};
+  var WHO_PM25 = 15, CIG = 22;
   var FOCUS = ["Delhi","Noida","Ghaziabad","Gurugram","Faridabad"];
-  var SERIES = [{key:"PM2.5", cssVar:"--c-pm25"}, {key:"PM10", cssVar:"--c-pm10"}];
-  var FALLBACK = {"date": "2026-08-11", "cities": {"Delhi": {"CO": 27.6, "NH3": 25.4, "NO2": 15.8, "OZONE": 15.8, "PM10": 73.8, "PM2.5": 58.6, "SO2": 8.4}, "Noida": {"CO": 25.7, "NO2": 27.0, "OZONE": 34.3, "PM10": 69.2, "PM2.5": 58.0, "SO2": 8.5}, "Ghaziabad": {"CO": 22.0, "NH3": 6.0, "NO2": 12.3, "OZONE": 21.7, "PM10": 72.6, "PM2.5": 53.0, "SO2": 7.4}, "Gurugram": {"CO": 27.5, "NH3": 5.5, "OZONE": 22.5, "PM10": 86.0, "PM2.5": 88.0, "SO2": 7.5}, "Faridabad": {"NH3": 7.6, "NO2": 17.5, "OZONE": 15.0, "PM10": 101.3, "PM2.5": 95.3, "SO2": 7.7}}, "ranking": [["Faridabad", 95.3], ["Gurugram", 88.0], ["Delhi", 58.6], ["Noida", 58.0], ["Ghaziabad", 53.0]]};
+  var FALLBACK = {"date": "2026-08-11", "cities": {"Delhi": {"PM10": 73.8, "PM2.5": 58.6}, "Noida": {"PM10": 69.2, "PM2.5": 58.0}, "Ghaziabad": {"PM10": 72.6, "PM2.5": 53.0}, "Gurugram": {"PM10": 86.0, "PM2.5": 88.0}, "Faridabad": {"PM10": 101.3, "PM2.5": 95.3}}};
 
-  /* ---------- theme ---------- */
   var root = document.documentElement;
   var stored = null;
   try { stored = localStorage.getItem("theme"); } catch(e){}
@@ -402,394 +383,78 @@
     var next = isLight ? "dark" : "light";
     root.setAttribute("data-theme", next);
     try { localStorage.setItem("theme", next); } catch(e){}
-    redrawCharts();
   });
 
-  function cssColor(name){
-    return getComputedStyle(root).getPropertyValue(name).trim() || "#888";
-  }
   function fmtDate(iso){
     try{ return new Date(iso+"T00:00:00").toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}); }
     catch(e){ return iso; }
   }
-  function fmtShort(iso){
-    try{ return new Date(iso+"T00:00:00").toLocaleDateString("en-GB",{day:"2-digit",month:"short"}); }
-    catch(e){ return iso; }
-  }
-  var ARROW_UP = "<svg width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.4' stroke-linecap='round' aria-hidden='true'><path d='M12 19V5m-6 6 6-6 6 6'/></svg>";
-  var ARROW_DN = "<svg width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.4' stroke-linecap='round' aria-hidden='true'><path d='M12 5v14m-6-6 6 6 6-6'/></svg>";
-  var DOT = "<svg width='7' height='7' viewBox='0 0 8 8' fill='currentColor' aria-hidden='true'><circle cx='4' cy='4' r='4'/></svg>";
 
-  /* ---------- today ---------- */
-  function render(data, stale, prevDay){
-    if(stale){ document.getElementById("stale").style.display="block"; }
-    document.getElementById("dateline").textContent = "CPCB · " + fmtDate(data.date);
+  var LATEST = FALLBACK;
 
-    var breachCities = 0, worst = null;
-    FOCUS.forEach(function(city){
-      var d = data.cities[city]; if(!d) return;
-      var b = ["PM2.5","PM10"].some(function(p){ return typeof d[p]==="number" && d[p] > WHO[p]; });
-      if(b) breachCities++;
-      if(typeof d["PM2.5"]==="number"){
-        var m = d["PM2.5"]/WHO["PM2.5"];
-        if(!worst || m > worst.m) worst = {city:city, m:m};
-      }
-    });
-
+  function renderHero(data){
     var delhi = data.cities["Delhi"] || {};
-    var multEl = document.getElementById("mult");
     var halo = document.getElementById("halo");
     if(typeof delhi["PM2.5"]==="number"){
-      var dm = delhi["PM2.5"]/WHO["PM2.5"];
-      multEl.textContent = dm.toFixed(1);
-      if(dm <= 1){
+      var m = delhi["PM2.5"]/WHO_PM25;
+      document.getElementById("mult").textContent = m.toFixed(1);
+      if(m <= 1){
         halo.style.setProperty("--halo-core","rgba(58,125,116,.40)");
         halo.style.setProperty("--halo-mid","rgba(58,125,116,.15)");
       }
-    }else{
-      multEl.textContent = "—";
-      document.getElementById("verdict-city").textContent = "Delhi · no data today";
     }
-    var kb = document.getElementById("kpi-breach");
-    kb.textContent = breachCities;
-    kb.className = breachCities ? "k-bad" : "k-ok";
-    document.getElementById("kpi-total").textContent = FOCUS.length;
-    if(worst){
-      document.getElementById("kpi-worst").textContent = worst.city;
-      document.getElementById("kpi-worst-sub").textContent = "· PM2.5 " + worst.m.toFixed(1) + "×";
+    document.getElementById("verdict-date").textContent = fmtDate(data.date);
+  }
+
+  function renderCalc(city){
+    var d = LATEST.cities[city] || {};
+    var pm = d["PM2.5"];
+    var pmEl = document.getElementById("c-pm"), multEl = document.getElementById("c-mult"),
+        cigEl = document.getElementById("c-cig"), yearEl = document.getElementById("c-year");
+    if(typeof pm !== "number"){
+      pmEl.textContent = multEl.textContent = cigEl.textContent = yearEl.textContent = "no data today";
+      pmEl.className = multEl.className = cigEl.className = yearEl.className = "co-val";
+      return;
     }
-
-    var host = document.getElementById("tiles");
-    host.innerHTML = "";
-    FOCUS.forEach(function(city){
-      var d = data.cities[city];
-      var tile = document.createElement("article");
-      tile.className = "tile";
-      if(!d){
-        tile.innerHTML = "<div class='tile-top'><h3>"+city+"</h3></div><p class='tile-note'>no data reported today</p>";
-        host.appendChild(tile); return;
-      }
-      var pm = d["PM2.5"], pm10 = d["PM10"];
-      var breach = (typeof pm==="number" && pm>WHO["PM2.5"]) || (typeof pm10==="number" && pm10>WHO["PM10"]);
-      var mult = typeof pm==="number" ? pm/WHO["PM2.5"] : null;
-
-      var deltaHtml = "";
-      if(prevDay && prevDay[city] && typeof prevDay[city]["PM2.5"]==="number" && mult!==null){
-        var prevM = prevDay[city]["PM2.5"]/WHO["PM2.5"];
-        var diff = mult - prevM;
-        if(Math.abs(diff) >= 0.05){
-          deltaHtml = "<span class='delta "+(diff>0?"up":"down")+"'>"+(diff>0?ARROW_UP:ARROW_DN)+Math.abs(diff).toFixed(1)+"× vs yesterday</span>";
-        } else {
-          deltaHtml = "<span class='delta'>— flat vs yesterday</span>";
-        }
-      }
-      var rows = "";
-      ["PM2.5","PM10"].forEach(function(p){
-        if(typeof d[p]!=="number") return;
-        rows += "<div class='r'><span>"+p+"</span><b>"+d[p]+" µg/m³ · "+(d[p]/WHO[p]).toFixed(1)+"×</b></div>";
-      });
-      tile.innerHTML =
-        "<div class='tile-top'><h3>"+city+"</h3>"
-        + "<span class='flag "+(breach?"breach":"ok")+"'>"+(breach?"BREACH":"OK")+"</span></div>"
-        + (mult!==null
-            ? "<div><span class='tile-mult'>"+mult.toFixed(1)+"<span class='x'> × WHO</span></span></div>"
-            : "<p class='tile-note'>no PM2.5 today</p>")
-        + (deltaHtml || "")
-        + "<div class='tile-rows'>"+rows+"</div>";
-      host.appendChild(tile);
-    });
-
-    var list = document.getElementById("ranking");
-    list.innerHTML = "";
-    var max = (data.ranking && data.ranking.length) ? data.ranking[0][1] : 1;
-    (data.ranking || []).forEach(function(row, i){
-      var li = document.createElement("li");
-      var isFocus = FOCUS.indexOf(row[0]) !== -1;
-      li.innerHTML = "<span class='rk-num'>"+String(i+1).padStart(2,"0")+"</span>"
-        + "<span class='rk-city"+(isFocus?" is-focus":"")+"'>"+row[0]+"</span>"
-        + "<span class='rk-track'><span class='rk-bar' style='width:"+Math.max(row[1]/max*100,4)+"%'></span></span>"
-        + "<span class='rk-val'>"+row[1]+" µg/m³</span>";
-      list.appendChild(li);
-    });
+    var mult = pm/WHO_PM25, cigs = pm/CIG;
+    var cls = "co-val " + (mult > 1 ? "bad" : "good");
+    pmEl.innerHTML = pm + " <small>µg/m³</small>"; pmEl.className = cls;
+    multEl.innerHTML = mult.toFixed(1) + "× <small>the 24-h guideline</small>"; multEl.className = cls;
+    cigEl.innerHTML = cigs.toFixed(1) + " <small>cigarettes' worth of PM2.5</small>"; cigEl.className = cls;
+    yearEl.innerHTML = Math.round(cigs*365) + " <small>cigarettes / year at this level</small>"; yearEl.className = cls;
   }
 
-  /* ---------- history charts ---------- */
-  var tipEl = document.getElementById("viz-tip");
-  var HISTORY = null;
-  function redrawCharts(){ if(HISTORY) renderHistory(HISTORY); }
-
-  function renderHistory(history){
-    HISTORY = history;
-    var dates = Object.keys(history).sort();
-    if(!dates.length) return;
-    document.getElementById("kpi-days").textContent = dates.length;
-    var C1 = cssColor("--c-pm25"), C2 = cssColor("--c-pm10");
-    var GRID = cssColor("--grid"), MUT = cssColor("--faint"), WHOC = cssColor("--who"), BG = cssColor("--bg");
-    var COLORS = {"PM2.5":C1, "PM10":C2};
-
-    var maxMult = 2;
-    dates.forEach(function(dt){
-      FOCUS.forEach(function(city){
-        var d = history[dt][city]; if(!d) return;
-        SERIES.forEach(function(s){
-          if(typeof d[s.key]==="number") maxMult = Math.max(maxMult, d[s.key]/WHO[s.key]);
+  function renderMetrics(history, complaints){
+    if(history){
+      var dates = Object.keys(history).sort();
+      document.getElementById("m-days").textContent = dates.length;
+      var breachDays = 0, worst = null;
+      dates.forEach(function(dt){
+        var anyBreach = false;
+        FOCUS.forEach(function(city){
+          var d = history[dt][city]; if(!d) return;
+          if(typeof d["PM2.5"]==="number"){
+            if(d["PM2.5"] > WHO_PM25) anyBreach = true;
+            if(!worst || d["PM2.5"] > worst.v) worst = {v:d["PM2.5"], city:city, date:dt};
+          }
+          if(typeof d["PM10"]==="number" && d["PM10"] > 45) anyBreach = true;
         });
+        if(anyBreach) breachDays++;
       });
-    });
-    var yMax = Math.ceil(maxMult + 0.4);
-
-    var W = 340, H = 180, PL = 34, PR = 50, PT = 12, PB = 26;
-    var iw = W-PL-PR, ih = H-PT-PB;
-    function yOf(m){ return PT + ih - (m/yMax)*ih; }
-    function xOf(i){ return dates.length===1 ? PL+iw/2 : PL + (i/(dates.length-1))*iw; }
-
-    var host = document.getElementById("charts");
-    host.innerHTML = "";
-
-    FOCUS.forEach(function(city){
-      var card = document.createElement("article");
-      card.className = "chart-card";
-      var svg = "<svg viewBox='0 0 "+W+" "+H+"' role='img' aria-label='"+city+" — daily PM2.5 and PM10 as multiples of the WHO limit'>";
-      for(var g=1; g<=yMax; g++){
-        var gy = yOf(g);
-        svg += "<line x1='"+PL+"' y1='"+gy+"' x2='"+(PL+iw)+"' y2='"+gy+"' stroke='"+GRID+"' stroke-width='1'/>";
-        svg += "<text x='"+(PL-8)+"' y='"+(gy+3.5)+"' text-anchor='end' font-family='DM Mono,monospace' font-size='9.5' fill='"+MUT+"'>"+g+"×</text>";
+      document.getElementById("m-breach").textContent = breachDays;
+      if(worst){
+        document.getElementById("m-worst").textContent = (worst.v/WHO_PM25).toFixed(1) + "×";
+        document.getElementById("m-worst-label").textContent = "worst PM2.5 on record — " + worst.city;
       }
-      var wy = yOf(1);
-      svg += "<line x1='"+PL+"' y1='"+wy+"' x2='"+(PL+iw)+"' y2='"+wy+"' stroke='"+WHOC+"' stroke-width='1.3' stroke-dasharray='4 4' opacity='.85'/>";
-
-      var cityHasData = false;
-      SERIES.forEach(function(s){
-        var pts = [];
-        dates.forEach(function(dt, i){
-          var d = history[dt][city];
-          if(d && typeof d[s.key]==="number") pts.push([xOf(i), yOf(d[s.key]/WHO[s.key])]);
-        });
-        if(!pts.length) return;
-        cityHasData = true;
-        var col = COLORS[s.key];
-        if(pts.length > 1){
-          var path = pts.map(function(p,j){ return (j?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1); }).join(" ");
-          svg += "<path d='"+path+"' fill='none' stroke='"+col+"' stroke-width='2' stroke-linejoin='round' stroke-linecap='round'/>";
-        }
-        pts.forEach(function(p){
-          svg += "<circle cx='"+p[0].toFixed(1)+"' cy='"+p[1].toFixed(1)+"' r='4' fill='"+col+"' stroke='"+BG+"' stroke-width='2'/>";
-        });
-        var last = pts[pts.length-1];
-        svg += "<text x='"+(last[0]+9)+"' y='"+(last[1]+3.5)+"' font-family='DM Mono,monospace' font-size='9.5' fill='"+MUT+"'>"+s.key+"</text>";
-      });
-
-      if(!cityHasData){
-        svg += "<text x='"+(PL+iw/2)+"' y='"+(PT+ih/2)+"' text-anchor='middle' font-family='DM Mono,monospace' font-size='10' letter-spacing='1.5' fill='"+MUT+"'>NO PM DATA RECORDED YET</text>";
-      }
-      svg += "<text x='"+PL+"' y='"+(H-7)+"' font-family='DM Mono,monospace' font-size='9.5' fill='"+MUT+"'>"+fmtShort(dates[0])+"</text>";
-      if(dates.length > 1){
-        svg += "<text x='"+(PL+iw)+"' y='"+(H-7)+"' text-anchor='end' font-family='DM Mono,monospace' font-size='9.5' fill='"+MUT+"'>"+fmtShort(dates[dates.length-1])+"</text>";
-      }
-      svg += "<line class='xh' x1='0' y1='"+PT+"' x2='0' y2='"+(PT+ih)+"' stroke='"+MUT+"' stroke-width='1' opacity='.6' style='display:none'/>";
-      svg += "<rect class='hover-zone' x='"+PL+"' y='"+PT+"' width='"+iw+"' height='"+ih+"' fill='transparent'/>";
-      svg += "</svg>";
-
-      card.innerHTML = "<h3>"+city+"</h3>" + svg;
-      host.appendChild(card);
-
-      var svgEl = card.querySelector("svg");
-      var zone = card.querySelector(".hover-zone");
-      var xh = card.querySelector(".xh");
-      function idxFromEvent(ev){
-        var r = svgEl.getBoundingClientRect();
-        var px = (ev.clientX - r.left) * (W / r.width);
-        if(dates.length === 1) return 0;
-        var t = (px - PL) / iw;
-        return Math.max(0, Math.min(dates.length-1, Math.round(t*(dates.length-1))));
-      }
-      zone.addEventListener("mousemove", function(ev){
-        var i = idxFromEvent(ev);
-        var cx = xOf(i);
-        xh.setAttribute("x1", cx); xh.setAttribute("x2", cx);
-        xh.style.display = "";
-        var d = history[dates[i]][city] || {};
-        var html = "<div class='tip-date'>"+city+" · "+fmtShort(dates[i])+"</div>";
-        SERIES.forEach(function(s){
-          if(typeof d[s.key]!=="number") return;
-          var m = d[s.key]/WHO[s.key];
-          html += "<div class='tip-row'><span class='dot' style='background:"+COLORS[s.key]+"'></span>"
-                + "<span>"+s.key+"</span><b>"+d[s.key]+" µg/m³ · "+m.toFixed(1)+"×</b></div>";
-        });
-        tipEl.innerHTML = html;
-        tipEl.style.display = "block";
-        var tx = ev.clientX + 14, ty = ev.clientY + 14;
-        if(tx + 260 > window.innerWidth) tx = ev.clientX - 264;
-        if(ty + 100 > window.innerHeight) ty = ev.clientY - 110;
-        tipEl.style.left = tx + "px"; tipEl.style.top = ty + "px";
-      });
-      zone.addEventListener("mouseleave", function(){
-        xh.style.display = "none";
-        tipEl.style.display = "none";
-      });
-    });
-
-    var tbl = "<table><thead><tr><th>Date</th>";
-    FOCUS.forEach(function(c){ tbl += "<th colspan='2'>"+c+"</th>"; });
-    tbl += "</tr><tr><th></th>";
-    FOCUS.forEach(function(){ tbl += "<th>PM2.5</th><th>PM10</th>"; });
-    tbl += "</tr></thead><tbody>";
-    dates.forEach(function(dt){
-      tbl += "<tr><td>"+fmtShort(dt)+"</td>";
-      FOCUS.forEach(function(c){
-        var d = history[dt][c] || {};
-        ["PM2.5","PM10"].forEach(function(p){
-          tbl += "<td>"+(typeof d[p]==="number" ? "<b>"+d[p]+"</b>" : "—")+"</td>";
-        });
-      });
-      tbl += "</tr>";
-    });
-    tbl += "</tbody></table>";
-    document.getElementById("history-table").innerHTML = tbl;
-  }
-
-  /* ---------- health guidance ---------- */
-  function renderGuidance(data){
-    var worst = null;
-    FOCUS.forEach(function(city){
-      var d = data.cities[city];
-      if(d && typeof d["PM2.5"]==="number" && (!worst || d["PM2.5"] > worst.v)){
-        worst = {city:city, v:d["PM2.5"]};
-      }
-    });
-    if(!worst) return;
-    var v = worst.v;
-    var band =
-      v <= 15  ? {name:"Within WHO guideline", cls:"ok", tips:[
-                    "Air is within the WHO 24-hour guideline — normal outdoor activity is fine.",
-                    "A good day to air out the house.",
-                    "Enjoy it; days like this are worth recording too."]} :
-      v <= 35  ? {name:"Elevated", cls:"wait", tips:[
-                    "Sensitive groups (children, elderly, heart or lung conditions) should shorten prolonged outdoor exertion.",
-                    "Prefer morning hours for outdoor exercise, away from traffic.",
-                    "Keep an eye on symptoms if you are in a sensitive group."]} :
-      v <= 55  ? {name:"Unhealthy for sensitive groups", cls:"wait", tips:[
-                    "Children, the elderly, and anyone with heart or lung conditions should limit time outdoors.",
-                    "A well-fitted N95 mask helps for unavoidable time outside.",
-                    "Reduce intense outdoor exercise; move workouts indoors if possible."]} :
-      v <= 90  ? {name:"Unhealthy", cls:"over", tips:[
-                    "Everyone should cut back on outdoor exertion today — this air affects healthy lungs too.",
-                    "Wear a well-fitted N95 outdoors; keep windows closed at peak hours.",
-                    "Run an air purifier if you have one, especially where children or elderly sleep."]} :
-      v <= 150 ? {name:"Very unhealthy", cls:"over", tips:[
-                    "Avoid outdoor exercise entirely; vulnerable people should stay indoors.",
-                    "N95 outdoors is strongly advised; keep indoor air filtered and windows shut.",
-                    "Consider filing today's complaint draft — readings like this are what the ledger is for."]} :
-                 {name:"Hazardous", cls:"over", tips:[
-                    "Stay indoors as much as possible; seal windows and filter indoor air.",
-                    "If you must go out, an N95 is essential — limit the time strictly.",
-                    "Check on elderly neighbours and anyone with respiratory conditions."]};
-    var html = "<p><span class='badge "+band.cls+"'>"+DOT+band.name.toUpperCase()+"</span>"
-      + "&nbsp;&nbsp;Worst reading today: <b>"+worst.city+"</b> — <span class='num'>PM2.5 "+v+" µg/m³ · "
-      + (v/WHO["PM2.5"]).toFixed(1) + "× the WHO guideline</span></p><ul>";
-    band.tips.forEach(function(t){ html += "<li>"+t+"</li>"; });
-    html += "</ul>";
-    document.getElementById("guidance-body").innerHTML = html;
-  }
-
-  /* ---------- draft viewer ---------- */
-  var modal = document.getElementById("doc-modal");
-  var docBody = document.getElementById("doc-body");
-  function escapeHtml(s){
-    return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-  }
-  function inline(s){
-    return s
-      .replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>")
-      .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g,"<a href='$2' rel='noopener'>$1</a>")
-      .replace(/(^|[\s(])((https?:\/\/)[^\s<)]+)/g,"$1<a href='$2' rel='noopener'>$2</a>");
-  }
-  function mdToHtml(md){
-    var lines = md.split("\n"), out = [], listOpen = false, tableRows = [];
-    function flushList(){ if(listOpen){ out.push("</ul>"); listOpen = false; } }
-    function flushTable(){
-      if(!tableRows.length) return;
-      var rows = tableRows.filter(function(r){ return !/^\|[\s\-|]+\|$/.test(r); });
-      var html = "<div class='tablewrap'><table>";
-      rows.forEach(function(r, i){
-        var cells = r.replace(/^\||\|$/g,"").split("|").map(function(c){ return inline(escapeHtml(c.trim())); });
-        html += "<tr>" + cells.map(function(c){ return (i===0?"<th>":"<td>")+c+(i===0?"</th>":"</td>"); }).join("") + "</tr>";
-      });
-      html += "</table></div>";
-      out.push(html); tableRows = [];
     }
-    lines.forEach(function(raw){
-      var line = raw.replace(/\r$/,"");
-      if(/^\|/.test(line.trim())){ flushList(); tableRows.push(line.trim()); return; }
-      flushTable();
-      var t = line.trim();
-      if(!t){ flushList(); return; }
-      var m;
-      if((m = t.match(/^###\s+(.*)/))){ flushList(); out.push("<h3>"+inline(escapeHtml(m[1]))+"</h3>"); }
-      else if((m = t.match(/^##\s+(.*)/))){ flushList(); out.push("<h2>"+inline(escapeHtml(m[1]))+"</h2>"); }
-      else if((m = t.match(/^#\s+(.*)/))){ flushList(); out.push("<h1>"+inline(escapeHtml(m[1]))+"</h1>"); }
-      else if((m = t.match(/^>\s?(.*)/))){ flushList(); out.push("<blockquote>"+inline(escapeHtml(m[1]))+"</blockquote>"); }
-      else if((m = t.match(/^[-*]\s+(.*)/))){
-        if(!listOpen){ out.push("<ul>"); listOpen = true; }
-        out.push("<li>"+inline(escapeHtml(m[1]))+"</li>");
-      }
-      else { out.push("<p>"+inline(escapeHtml(t))+"</p>"); }
-    });
-    flushList(); flushTable();
-    return out.join("\n");
-  }
-  function openDraft(doc){
-    docBody.innerHTML = "<p class='doc-loading'>LOADING…</p>";
-    modal.classList.add("open");
-    fetch(doc, {cache:"no-store"})
-      .then(function(r){ if(!r.ok) throw new Error(r.status); return r.text(); })
-      .then(function(md){ docBody.innerHTML = mdToHtml(md); })
-      .catch(function(){
-        docBody.innerHTML = "<p>Could not load the draft here. <a href='https://github.com/mayankJFT/aqi-ncr/blob/main/"+doc+"' rel='noopener'>Open it on GitHub instead</a>.</p>";
-      });
-  }
-  function closeModal(){ modal.classList.remove("open"); }
-  document.getElementById("modal-close").addEventListener("click", closeModal);
-  modal.addEventListener("click", function(e){ if(e.target === modal) closeModal(); });
-  document.addEventListener("keydown", function(e){ if(e.key === "Escape") closeModal(); });
-
-  /* ---------- complaints ---------- */
-  function renderComplaints(items){
-    if(!items || !items.length) return;
-    var today = new Date(); today.setHours(0,0,0,0);
-    var html = "<div class='tablewrap'><table><thead><tr><th>Drafted</th><th>Cities in breach</th><th>Worst reading</th><th>Respond-by if filed</th><th>Status</th><th>Draft</th></tr></thead><tbody>";
-    items.slice().reverse().forEach(function(x){
-      var worst = x.breaches.reduce(function(a,b){ return b.multiple > a.multiple ? b : a; });
-      var cities = {};
-      x.breaches.forEach(function(b){ cities[b.city] = 1; });
-      var badge;
-      if(x.status === "draft"){
-        badge = "<span class='badge wait'>"+DOT+"DRAFT · UNSENT</span>";
-      } else {
-        var due = new Date(x.deadline + "T00:00:00");
-        var days = Math.round((due - today) / 86400000);
-        badge = days < 0
-          ? "<span class='badge over'>"+DOT+"OVERDUE "+Math.abs(days)+"D</span>"
-          : "<span class='badge wait'>"+DOT+days+"D REMAINING</span>";
-      }
-      html += "<tr><td>"+fmtShort(x.date)+"</td>"
-            + "<td>"+Object.keys(cities).join(", ")+"</td>"
-            + "<td><b>"+worst.city+" "+worst.pollutant+" "+worst.multiple+"×</b></td>"
-            + "<td>"+fmtShort(x.deadline)+"</td>"
-            + "<td>"+badge+"</td>"
-            + "<td><button class='view-btn' data-doc='"+x.doc+"'>view draft</button></td></tr>";
-    });
-    html += "</tbody></table></div>";
-    var body = document.getElementById("complaints-body");
-    body.innerHTML = html;
-    body.className = "";
-    body.addEventListener("click", function(e){
-      var btn = e.target.closest ? e.target.closest(".view-btn") : null;
-      if(btn) openDraft(btn.getAttribute("data-doc"));
-    });
+    document.getElementById("m-complaints").textContent = complaints ? complaints.length : 0;
+    document.getElementById("m-cities").textContent = FOCUS.length;
   }
 
-  /* ---------- load ---------- */
+  document.getElementById("city-select").addEventListener("change", function(e){
+    renderCalc(e.target.value);
+  });
+
   function getJson(url){
     return fetch(url, {cache:"no-store"}).then(function(r){
       if(!r.ok) throw new Error(r.status); return r.json();
@@ -797,23 +462,14 @@
   }
   Promise.all([
     getJson("latest.json").catch(function(){ return null; }),
-    getJson("history.json").catch(function(){ return null; })
+    getJson("history.json").catch(function(){ return null; }),
+    getJson("complaints.json").catch(function(){ return null; })
   ]).then(function(res){
-    var latest = res[0], history = res[1];
-    var prevDay = null;
-    if(history){
-      var ds = Object.keys(history).sort();
-      var latestDate = latest ? latest.date : ds[ds.length-1];
-      var prior = ds.filter(function(d){ return d < latestDate; });
-      if(prior.length) prevDay = history[prior[prior.length-1]];
-    }
-    if(latest) render(latest, false, prevDay);
-    else render(FALLBACK, true, prevDay);
-    renderGuidance(latest || FALLBACK);
-    if(history) renderHistory(history);
-    else { var h={}; h[FALLBACK.date]=FALLBACK.cities; renderHistory(h); }
+    LATEST = res[0] || FALLBACK;
+    renderHero(LATEST);
+    renderCalc("Delhi");
+    renderMetrics(res[1], res[2]);
   });
-  getJson("complaints.json").then(renderComplaints).catch(function(){});
 })();
 </script>
 </body>
