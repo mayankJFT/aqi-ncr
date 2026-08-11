@@ -153,8 +153,12 @@
   .chart-card h3{font-style:italic; font-weight:500; font-size:22px; margin-bottom:10px}
   .chart-card svg{display:block; width:100%; height:auto; overflow:visible}
   .chart-note{font-family:'DM Mono',monospace; font-size:10.5px; color:var(--faint); margin-top:16px; letter-spacing:.04em}
+  .chart-card svg{cursor:pointer}
+  .chart-card h3 .exp{float:right; color:var(--faint); transition:color .2s}
+  .chart-card:hover h3 .exp{color:var(--gold)}
+  .modal-doc.wide{max-width:1080px}
   .viz-tip{
-    position:fixed; z-index:30; pointer-events:none; display:none;
+    position:fixed; z-index:60; pointer-events:none; display:none;
     background:var(--tip-bg); border:1px solid var(--line); padding:10px 12px;
     font-family:'DM Mono',monospace; font-size:11px; line-height:1.8; color:var(--text); max-width:250px;
   }
@@ -318,7 +322,7 @@
       <span><span class="sw-who"></span>WHO limit (1×)</span>
     </div>
     <div class="charts" id="charts"></div>
-    <p class="chart-note">Each point is one morning's city-wide station average, as a multiple of that pollutant's WHO 24-hour guideline. The record grows one point per day.</p>
+    <p class="chart-note">Each point is one morning's city-wide station average, as a multiple of that pollutant's WHO 24-hour guideline. The record grows one point per day. Click any chart to enlarge it.</p>
     <details class="tableview">
       <summary>Table view — full history</summary>
       <div class="tablewrap" id="history-table"></div>
@@ -519,15 +523,15 @@
   var HISTORY = null;
   function redrawCharts(){ if(HISTORY) renderHistory(HISTORY); }
 
-  function renderHistory(history){
-    HISTORY = history;
+  function chartTheme(){
+    return {
+      C: {"PM2.5":cssColor("--c-pm25"), "PM10":cssColor("--c-pm10")},
+      GRID: cssColor("--grid"), MUT: cssColor("--faint"),
+      WHOC: cssColor("--who"), BG: cssColor("--bg")
+    };
+  }
+  function chartMeta(history){
     var dates = Object.keys(history).sort();
-    if(!dates.length) return;
-    document.getElementById("kpi-days").textContent = dates.length;
-    var C1 = cssColor("--c-pm25"), C2 = cssColor("--c-pm10");
-    var GRID = cssColor("--grid"), MUT = cssColor("--faint"), WHOC = cssColor("--who"), BG = cssColor("--bg");
-    var COLORS = {"PM2.5":C1, "PM10":C2};
-
     var maxMult = 2;
     dates.forEach(function(dt){
       FOCUS.forEach(function(city){
@@ -537,97 +541,153 @@
         });
       });
     });
-    var yMax = Math.ceil(maxMult + 0.4);
+    return {dates: dates, yMax: Math.ceil(maxMult + 0.4)};
+  }
 
-    var W = 340, H = 180, PL = 34, PR = 50, PT = 12, PB = 26;
+  function buildChart(city, meta, dims, th){
+    var dates = meta.dates, yMax = meta.yMax;
+    var W=dims.W, H=dims.H, PL=dims.PL, PR=dims.PR, PT=dims.PT, PB=dims.PB;
     var iw = W-PL-PR, ih = H-PT-PB;
     function yOf(m){ return PT + ih - (m/yMax)*ih; }
     function xOf(i){ return dates.length===1 ? PL+iw/2 : PL + (i/(dates.length-1))*iw; }
 
+    var svg = "<svg viewBox='0 0 "+W+" "+H+"' role='img' aria-label='"+city+" — daily PM2.5 and PM10 as multiples of the WHO limit'>";
+    for(var g=1; g<=yMax; g++){
+      var gy = yOf(g);
+      svg += "<line x1='"+PL+"' y1='"+gy+"' x2='"+(PL+iw)+"' y2='"+gy+"' stroke='"+th.GRID+"' stroke-width='1'/>";
+      svg += "<text x='"+(PL-8)+"' y='"+(gy+dims.fs*0.36)+"' text-anchor='end' font-family='DM Mono,monospace' font-size='"+dims.fs+"' fill='"+th.MUT+"'>"+g+"×</text>";
+    }
+    var wy = yOf(1);
+    svg += "<line x1='"+PL+"' y1='"+wy+"' x2='"+(PL+iw)+"' y2='"+wy+"' stroke='"+th.WHOC+"' stroke-width='"+(dims.big?1.6:1.3)+"' stroke-dasharray='4 4' opacity='.85'/>";
+    if(dims.big){
+      svg += "<text x='"+(PL+iw)+"' y='"+(wy-7)+"' text-anchor='end' font-family='DM Mono,monospace' font-size='"+dims.fs+"' fill='"+th.WHOC+"'>WHO LIMIT</text>";
+    }
+
+    var cityHasData = false;
+    SERIES.forEach(function(s){
+      var pts = [];
+      meta.dates.forEach(function(dt, i){
+        var d = HISTORY[dt][city];
+        if(d && typeof d[s.key]==="number") pts.push([xOf(i), yOf(d[s.key]/WHO[s.key])]);
+      });
+      if(!pts.length) return;
+      cityHasData = true;
+      var col = th.C[s.key];
+      if(pts.length > 1){
+        var path = pts.map(function(p,j){ return (j?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1); }).join(" ");
+        svg += "<path d='"+path+"' fill='none' stroke='"+col+"' stroke-width='"+dims.sw+"' stroke-linejoin='round' stroke-linecap='round'/>";
+      }
+      pts.forEach(function(p){
+        svg += "<circle cx='"+p[0].toFixed(1)+"' cy='"+p[1].toFixed(1)+"' r='"+dims.r+"' fill='"+col+"' stroke='"+th.BG+"' stroke-width='2'/>";
+      });
+      var last = pts[pts.length-1];
+      svg += "<text x='"+(last[0]+dims.r+5)+"' y='"+(last[1]+dims.fs*0.36)+"' font-family='DM Mono,monospace' font-size='"+dims.fs+"' fill='"+th.MUT+"'>"+s.key+"</text>";
+    });
+
+    if(!cityHasData){
+      svg += "<text x='"+(PL+iw/2)+"' y='"+(PT+ih/2)+"' text-anchor='middle' font-family='DM Mono,monospace' font-size='"+(dims.fs+1)+"' letter-spacing='1.5' fill='"+th.MUT+"'>NO PM DATA RECORDED YET</text>";
+    }
+
+    // x labels: all dates on the big chart (thinned if crowded), first/last on small
+    if(dims.big){
+      var step = Math.max(1, Math.ceil(dates.length / Math.floor(iw/70)));
+      dates.forEach(function(dt, i){
+        if(i % step !== 0 && i !== dates.length-1) return;
+        var anchor = i===0 ? "start" : (i===dates.length-1 ? "end" : "middle");
+        svg += "<text x='"+xOf(i)+"' y='"+(H-10)+"' text-anchor='"+anchor+"' font-family='DM Mono,monospace' font-size='"+dims.fs+"' fill='"+th.MUT+"'>"+fmtShort(dt)+"</text>";
+      });
+    } else {
+      svg += "<text x='"+PL+"' y='"+(H-7)+"' font-family='DM Mono,monospace' font-size='"+dims.fs+"' fill='"+th.MUT+"'>"+fmtShort(dates[0])+"</text>";
+      if(dates.length > 1){
+        svg += "<text x='"+(PL+iw)+"' y='"+(H-7)+"' text-anchor='end' font-family='DM Mono,monospace' font-size='"+dims.fs+"' fill='"+th.MUT+"'>"+fmtShort(dates[dates.length-1])+"</text>";
+      }
+    }
+    svg += "<line class='xh' x1='0' y1='"+PT+"' x2='0' y2='"+(PT+ih)+"' stroke='"+th.MUT+"' stroke-width='1' opacity='.6' style='display:none'/>";
+    svg += "<rect class='hover-zone' x='"+PL+"' y='"+PT+"' width='"+iw+"' height='"+ih+"' fill='transparent'/>";
+    svg += "</svg>";
+    return svg;
+  }
+
+  function wireChart(rootEl, city, meta, dims, th){
+    var svgEl = rootEl.querySelector("svg");
+    var zone = rootEl.querySelector(".hover-zone");
+    var xh = rootEl.querySelector(".xh");
+    if(!svgEl || !zone || !xh) return;
+    var dates = meta.dates;
+    var iw = dims.W-dims.PL-dims.PR;
+    function xOf(i){ return dates.length===1 ? dims.PL+iw/2 : dims.PL + (i/(dates.length-1))*iw; }
+    function idxFromEvent(ev){
+      var r = svgEl.getBoundingClientRect();
+      var px = (ev.clientX - r.left) * (dims.W / r.width);
+      if(dates.length === 1) return 0;
+      var t = (px - dims.PL) / iw;
+      return Math.max(0, Math.min(dates.length-1, Math.round(t*(dates.length-1))));
+    }
+    zone.addEventListener("mousemove", function(ev){
+      var i = idxFromEvent(ev);
+      var cx = xOf(i);
+      xh.setAttribute("x1", cx); xh.setAttribute("x2", cx);
+      xh.style.display = "";
+      var d = HISTORY[dates[i]][city] || {};
+      var html = "<div class='tip-date'>"+city+" · "+fmtShort(dates[i])+"</div>";
+      SERIES.forEach(function(s){
+        if(typeof d[s.key]!=="number") return;
+        var m = d[s.key]/WHO[s.key];
+        html += "<div class='tip-row'><span class='dot' style='background:"+th.C[s.key]+"'></span>"
+              + "<span>"+s.key+"</span><b>"+d[s.key]+" µg/m³ · "+m.toFixed(1)+"×</b></div>";
+      });
+      tipEl.innerHTML = html;
+      tipEl.style.display = "block";
+      var tx = ev.clientX + 14, ty = ev.clientY + 14;
+      if(tx + 260 > window.innerWidth) tx = ev.clientX - 264;
+      if(ty + 100 > window.innerHeight) ty = ev.clientY - 110;
+      tipEl.style.left = tx + "px"; tipEl.style.top = ty + "px";
+    });
+    zone.addEventListener("mouseleave", function(){
+      xh.style.display = "none";
+      tipEl.style.display = "none";
+    });
+  }
+
+  var SMALL = {W:340, H:180, PL:34, PR:50, PT:12, PB:26, fs:9.5, r:4, sw:2, big:false};
+  var BIG   = {W:960, H:460, PL:56, PR:84, PT:28, PB:46, fs:12, r:5.5, sw:2.5, big:true};
+  var EXP_ICON = "<span class='exp' aria-hidden='true'><svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round'><path d='M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7'/></svg></span>";
+
+  function openChart(city){
+    var meta = chartMeta(HISTORY), th = chartTheme();
+    var panel = document.getElementById("doc-modal").querySelector(".modal-doc");
+    if(panel) panel.classList.add("wide");
+    docBody.innerHTML = "<h1>"+city+" — the record so far</h1>"
+      + "<p style='font-family:DM Mono,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:4px 0 18px'>"
+      + "daily station average · as multiples of the WHO 24-h guideline</p>"
+      + "<div class='legend'><span><span class='sw' style='background:var(--c-pm25)'></span>PM2.5</span>"
+      + "<span><span class='sw' style='background:var(--c-pm10)'></span>PM10</span>"
+      + "<span><span class='sw-who'></span>WHO limit (1×)</span></div>"
+      + buildChart(city, meta, BIG, th);
+    modal.classList.add("open");
+    wireChart(docBody, city, meta, BIG, th);
+  }
+
+  function renderHistory(history){
+    HISTORY = history;
+    var meta = chartMeta(history);
+    var dates = meta.dates;
+    if(!meta.dates.length) return;
+    document.getElementById("kpi-days").textContent = meta.dates.length;
+    var th = chartTheme();
     var host = document.getElementById("charts");
     host.innerHTML = "";
-
     FOCUS.forEach(function(city){
       var card = document.createElement("article");
       card.className = "chart-card";
-      var svg = "<svg viewBox='0 0 "+W+" "+H+"' role='img' aria-label='"+city+" — daily PM2.5 and PM10 as multiples of the WHO limit'>";
-      for(var g=1; g<=yMax; g++){
-        var gy = yOf(g);
-        svg += "<line x1='"+PL+"' y1='"+gy+"' x2='"+(PL+iw)+"' y2='"+gy+"' stroke='"+GRID+"' stroke-width='1'/>";
-        svg += "<text x='"+(PL-8)+"' y='"+(gy+3.5)+"' text-anchor='end' font-family='DM Mono,monospace' font-size='9.5' fill='"+MUT+"'>"+g+"×</text>";
-      }
-      var wy = yOf(1);
-      svg += "<line x1='"+PL+"' y1='"+wy+"' x2='"+(PL+iw)+"' y2='"+wy+"' stroke='"+WHOC+"' stroke-width='1.3' stroke-dasharray='4 4' opacity='.85'/>";
-
-      var cityHasData = false;
-      SERIES.forEach(function(s){
-        var pts = [];
-        dates.forEach(function(dt, i){
-          var d = history[dt][city];
-          if(d && typeof d[s.key]==="number") pts.push([xOf(i), yOf(d[s.key]/WHO[s.key])]);
-        });
-        if(!pts.length) return;
-        cityHasData = true;
-        var col = COLORS[s.key];
-        if(pts.length > 1){
-          var path = pts.map(function(p,j){ return (j?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1); }).join(" ");
-          svg += "<path d='"+path+"' fill='none' stroke='"+col+"' stroke-width='2' stroke-linejoin='round' stroke-linecap='round'/>";
-        }
-        pts.forEach(function(p){
-          svg += "<circle cx='"+p[0].toFixed(1)+"' cy='"+p[1].toFixed(1)+"' r='4' fill='"+col+"' stroke='"+BG+"' stroke-width='2'/>";
-        });
-        var last = pts[pts.length-1];
-        svg += "<text x='"+(last[0]+9)+"' y='"+(last[1]+3.5)+"' font-family='DM Mono,monospace' font-size='9.5' fill='"+MUT+"'>"+s.key+"</text>";
-      });
-
-      if(!cityHasData){
-        svg += "<text x='"+(PL+iw/2)+"' y='"+(PT+ih/2)+"' text-anchor='middle' font-family='DM Mono,monospace' font-size='10' letter-spacing='1.5' fill='"+MUT+"'>NO PM DATA RECORDED YET</text>";
-      }
-      svg += "<text x='"+PL+"' y='"+(H-7)+"' font-family='DM Mono,monospace' font-size='9.5' fill='"+MUT+"'>"+fmtShort(dates[0])+"</text>";
-      if(dates.length > 1){
-        svg += "<text x='"+(PL+iw)+"' y='"+(H-7)+"' text-anchor='end' font-family='DM Mono,monospace' font-size='9.5' fill='"+MUT+"'>"+fmtShort(dates[dates.length-1])+"</text>";
-      }
-      svg += "<line class='xh' x1='0' y1='"+PT+"' x2='0' y2='"+(PT+ih)+"' stroke='"+MUT+"' stroke-width='1' opacity='.6' style='display:none'/>";
-      svg += "<rect class='hover-zone' x='"+PL+"' y='"+PT+"' width='"+iw+"' height='"+ih+"' fill='transparent'/>";
-      svg += "</svg>";
-
-      card.innerHTML = "<h3>"+city+"</h3>" + svg;
+      card.innerHTML = "<h3>"+city+EXP_ICON+"</h3>" + buildChart(city, meta, SMALL, th);
       host.appendChild(card);
-
+      wireChart(card, city, meta, SMALL, th);
       var svgEl = card.querySelector("svg");
-      var zone = card.querySelector(".hover-zone");
-      var xh = card.querySelector(".xh");
-      function idxFromEvent(ev){
-        var r = svgEl.getBoundingClientRect();
-        var px = (ev.clientX - r.left) * (W / r.width);
-        if(dates.length === 1) return 0;
-        var t = (px - PL) / iw;
-        return Math.max(0, Math.min(dates.length-1, Math.round(t*(dates.length-1))));
+      if(svgEl){
+        svgEl.addEventListener("click", function(){ openChart(city); });
+        svgEl.setAttribute("title", "Click to enlarge");
       }
-      zone.addEventListener("mousemove", function(ev){
-        var i = idxFromEvent(ev);
-        var cx = xOf(i);
-        xh.setAttribute("x1", cx); xh.setAttribute("x2", cx);
-        xh.style.display = "";
-        var d = history[dates[i]][city] || {};
-        var html = "<div class='tip-date'>"+city+" · "+fmtShort(dates[i])+"</div>";
-        SERIES.forEach(function(s){
-          if(typeof d[s.key]!=="number") return;
-          var m = d[s.key]/WHO[s.key];
-          html += "<div class='tip-row'><span class='dot' style='background:"+COLORS[s.key]+"'></span>"
-                + "<span>"+s.key+"</span><b>"+d[s.key]+" µg/m³ · "+m.toFixed(1)+"×</b></div>";
-        });
-        tipEl.innerHTML = html;
-        tipEl.style.display = "block";
-        var tx = ev.clientX + 14, ty = ev.clientY + 14;
-        if(tx + 260 > window.innerWidth) tx = ev.clientX - 264;
-        if(ty + 100 > window.innerHeight) ty = ev.clientY - 110;
-        tipEl.style.left = tx + "px"; tipEl.style.top = ty + "px";
-      });
-      zone.addEventListener("mouseleave", function(){
-        xh.style.display = "none";
-        tipEl.style.display = "none";
-      });
     });
 
     var tbl = "<table><thead><tr><th>Date</th>";
@@ -740,6 +800,8 @@
     return out.join("\n");
   }
   function openDraft(doc){
+    var panel = modal.querySelector(".modal-doc");
+    if(panel) panel.classList.remove("wide");
     docBody.innerHTML = "<p class='doc-loading'>LOADING…</p>";
     modal.classList.add("open");
     fetch(doc, {cache:"no-store"})
