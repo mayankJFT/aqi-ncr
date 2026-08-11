@@ -5,3 +5,13 @@ services:
     buildCommand: ""
     staticPublishPath: .
     autoDeployTrigger: commit
+    routes:
+      - type: rewrite
+        source: /ledger
+        destination: /ledger.html
+      - type: redirect
+        source: /landing
+        destination: /
+      - type: redirect
+        source: /landing.html
+        destination: /
