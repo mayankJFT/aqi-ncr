@@ -232,6 +232,14 @@
     </div>
   </div>
 
+  <section aria-labelledby="guide-h">
+    <div class="sec-head">
+      <h2 id="guide-h">What today's air means</h2>
+      <span class="tag">general guidance · not medical advice</span>
+    </div>
+    <div class="comp-card" id="guidance-body"></div>
+  </section>
+
   <section aria-labelledby="today-h">
     <div class="sec-head">
       <h2 id="today-h">Today's readings</h2>
@@ -273,7 +281,7 @@
     </div>
     <div class="comp-card">
       <div id="complaints-body" class="comp-empty">No complaints documented yet.</div>
-      <p class="comp-note">On every breach day, a formal complaint document citing CPCB's own readings is generated and committed to the public repository, addressed to the responsible pollution control authorities. CPGRAMS grievance norms give authorities 21 days to respond; this ledger counts those days in public.</p>
+      <p class="comp-note">On every breach day, a formal complaint draft citing CPCB's own readings is generated and committed to the public repository — addressed to the responsible authorities (CAQM, CPCB, DPCC, UPPCB, HSPCB), with suggested delivery channels inside each draft. Drafts are never sent automatically: review one, file it via CPGRAMS or the relevant board, and the 21-day response clock starts from your filing date.</p>
     </div>
   </section>
 
@@ -287,11 +295,10 @@
       <a href="https://data.gov.in" rel="noopener">Open Government Data Platform</a>.
       Readings are pulled daily at 07:00 IST, station values averaged per city,
       sensor artefacts (≤0 or &gt;1500 µg/m³) discarded, then benchmarked against
-      WHO 2021 24-hour air quality guidelines. Every report is committed to
-      <a href="https://github.com/mayankJFT/aqi-ncr" rel="noopener">the public repository</a> —
-      the full archive, down to the code itself. Adapted from
-      <a href="https://github.com/shamathakur77/nashik-air-watch" rel="noopener">nashik-air-watch</a>.
-      Nothing to trust; everything to verify.
+      WHO 2021 24-hour air quality guidelines. Every reading, chart and complaint
+      draft in this ledger is generated and committed automatically, every morning, to
+      <a href="https://github.com/mayankJFT/aqi-ncr" rel="noopener">github.com/mayankJFT/aqi-ncr</a> —
+      open data in, open record out.
     </p>
   </section>
 
@@ -573,25 +580,77 @@
     document.getElementById("history-table").innerHTML = tbl;
   }
 
+  /* ---------- health guidance ---------- */
+  function renderGuidance(data){
+    var worst = null;
+    FOCUS.forEach(function(city){
+      var d = data.cities[city];
+      if(d && typeof d["PM2.5"]==="number" && (!worst || d["PM2.5"] > worst.v)){
+        worst = {city:city, v:d["PM2.5"]};
+      }
+    });
+    if(!worst) return;
+    var v = worst.v;
+    var band =
+      v <= 15  ? {name:"Within WHO guideline", cls:"ok", tips:[
+                    "Air is within the WHO 24-hour guideline — normal outdoor activity is fine.",
+                    "A good day to air out the house.",
+                    "Enjoy it; days like this are worth recording too."]} :
+      v <= 35  ? {name:"Elevated", cls:"wait", tips:[
+                    "Sensitive groups (children, elderly, heart or lung conditions) should shorten prolonged outdoor exertion.",
+                    "Prefer morning hours for outdoor exercise, away from traffic.",
+                    "Keep an eye on symptoms if you are in a sensitive group."]} :
+      v <= 55  ? {name:"Unhealthy for sensitive groups", cls:"wait", tips:[
+                    "Children, the elderly, and anyone with heart or lung conditions should limit time outdoors.",
+                    "A well-fitted N95 mask helps for unavoidable time outside.",
+                    "Reduce intense outdoor exercise; move workouts indoors if possible."]} :
+      v <= 90  ? {name:"Unhealthy", cls:"over", tips:[
+                    "Everyone should cut back on outdoor exertion today — this air affects healthy lungs too.",
+                    "Wear a well-fitted N95 outdoors; keep windows closed at peak hours.",
+                    "Run an air purifier if you have one, especially where children or elderly sleep."]} :
+      v <= 150 ? {name:"Very unhealthy", cls:"over", tips:[
+                    "Avoid outdoor exercise entirely; vulnerable people should stay indoors.",
+                    "N95 outdoors is strongly advised; keep indoor air filtered and windows shut.",
+                    "Consider filing today's complaint draft — readings like this are what the ledger is for."]} :
+                 {name:"Hazardous", cls:"over", tips:[
+                    "Stay indoors as much as possible; seal windows and filter indoor air.",
+                    "If you must go out, an N95 is essential — limit the time strictly.",
+                    "Check on elderly neighbours and anyone with respiratory conditions."]};
+    var html = "<p style='margin-bottom:12px'>"
+      + "<span class='badge "+band.cls+"'>"+DOT+band.name.toUpperCase()+"</span>"
+      + "&nbsp;&nbsp;Worst reading today: <b class='num'>"+worst.city+" PM2.5 at "+v+" µg/m³</b>"
+      + " — " + (v/WHO["PM2.5"]).toFixed(1) + "× the WHO 24-hour guideline.</p>";
+    html += "<ul style='margin:0 0 4px 18px; color:var(--muted); font-size:14px'>";
+    band.tips.forEach(function(t){ html += "<li style='margin-bottom:6px'>"+t+"</li>"; });
+    html += "</ul>";
+    document.getElementById("guidance-body").innerHTML = html;
+  }
+
   /* ---------- complaints ---------- */
   function renderComplaints(items){
     if(!items || !items.length) return;
     var today = new Date(); today.setHours(0,0,0,0);
-    var html = "<div class='tablewrap'><table><thead><tr><th>Filed</th><th>Cities in breach</th><th>Worst reading</th><th>Response due</th><th>Status</th></tr></thead><tbody>";
+    var html = "<div class='tablewrap'><table><thead><tr><th>Drafted</th><th>Cities in breach</th><th>Worst reading</th><th>Respond-by if filed</th><th>Status</th><th>Draft</th></tr></thead><tbody>";
     items.slice().reverse().forEach(function(x){
       var worst = x.breaches.reduce(function(a,b){ return b.multiple > a.multiple ? b : a; });
       var cities = {};
       x.breaches.forEach(function(b){ cities[b.city] = 1; });
-      var due = new Date(x.deadline + "T00:00:00");
-      var days = Math.round((due - today) / 86400000);
-      var badge = days < 0
-        ? "<span class='badge over'>"+DOT+"OVERDUE "+Math.abs(days)+"d</span>"
-        : "<span class='badge wait'>"+DOT+days+"d remaining</span>";
+      var badge;
+      if(x.status === "draft"){
+        badge = "<span class='badge wait'>"+DOT+"DRAFT · unsent</span>";
+      } else {
+        var due = new Date(x.deadline + "T00:00:00");
+        var days = Math.round((due - today) / 86400000);
+        badge = days < 0
+          ? "<span class='badge over'>"+DOT+"OVERDUE "+Math.abs(days)+"d</span>"
+          : "<span class='badge wait'>"+DOT+days+"d remaining</span>";
+      }
       html += "<tr><td>"+fmtShort(x.date)+"</td>"
             + "<td>"+Object.keys(cities).join(", ")+"</td>"
             + "<td><b>"+worst.city+" "+worst.pollutant+" "+worst.multiple+"×</b></td>"
             + "<td>"+fmtShort(x.deadline)+"</td>"
-            + "<td>"+badge+"</td></tr>";
+            + "<td>"+badge+"</td>"
+            + "<td><a href='https://github.com/mayankJFT/aqi-ncr/blob/main/"+x.doc+"' rel='noopener'>view</a></td></tr>";
     });
     html += "</tbody></table></div>";
     document.getElementById("complaints-body").innerHTML = html;
@@ -618,6 +677,7 @@
     }
     if(latest) render(latest, false, prevDay);
     else render(FALLBACK, true, prevDay);
+    renderGuidance(latest || FALLBACK);
     if(history) renderHistory(history);
     else { var h={}; h[FALLBACK.date]=FALLBACK.cities; renderHistory(h); }
   });

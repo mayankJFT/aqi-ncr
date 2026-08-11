@@ -134,7 +134,7 @@ history[today] = {c: report[c] for c in FOCUS_CITIES if c in report}
 with open("history.json", "w") as f:
     json.dump(dict(sorted(history.items())), f, indent=2)
 
-# --- complaint ledger: one documented complaint per breach day, 21-day deadline ---
+# --- complaint ledger: one documented DRAFT per breach day, 21-day deadline ---
 AUTHORITIES = {
     "Delhi": "Delhi Pollution Control Committee (DPCC) / CPCB",
     "Noida": "Uttar Pradesh Pollution Control Board (UPPCB) / CPCB",
@@ -142,6 +142,65 @@ AUTHORITIES = {
     "Gurugram": "Haryana State Pollution Control Board (HSPCB) / CPCB",
     "Faridabad": "Haryana State Pollution Control Board (HSPCB) / CPCB",
 }
+
+# Curated delivery channels — kept out of the LLM so nothing is invented.
+# Verify each before first use; portal filings (CPGRAMS) start the tracked
+# response clock that the 21-day deadline refers to.
+CHANNELS = [
+    ("CAQM — Commission for Air Quality Management in NCR",
+     "statutory body created specifically for NCR air quality",
+     "https://caqm.nic.in"),
+    ("CPCB — Central Pollution Control Board",
+     "national regulator; operates the monitoring stations cited in this complaint",
+     "https://cpcb.nic.in/contact-us/"),
+    ("DPCC — Delhi Pollution Control Committee",
+     "responsible for Delhi readings",
+     "https://www.dpcc.delhigovt.nic.in/contact_us"),
+    ("UPPCB — Uttar Pradesh Pollution Control Board",
+     "responsible for Noida and Ghaziabad readings",
+     "https://uppcb.up.gov.in/en/page/public-grievances"),
+    ("HSPCB — Haryana State Pollution Control Board",
+     "responsible for Gurugram and Faridabad readings",
+     "https://hspcb.org.in"),
+    ("CPGRAMS — Centralised Public Grievance Portal",
+     "official channel whose filing starts the tracked 21-day response window",
+     "https://pgportal.gov.in"),
+]
+
+def draft_with_groq(table_md, today, deadline):
+    key = os.environ.get("GROQ_API_KEY")
+    if not key:
+        return None
+    prompt = (
+        "Draft the body of a formal air-quality complaint letter to Indian "
+        "pollution control authorities (CAQM, CPCB, DPCC, UPPCB, HSPCB) for "
+        f"{today}. Use ONLY the readings below; do not invent numbers, names, "
+        "email addresses, or laws beyond the Air (Prevention and Control of "
+        "Pollution) Act, 1981 and the WHO 2021 guidelines. Cite that the data "
+        "comes from CPCB's own real-time stations via data.gov.in. Request "
+        "acknowledgement and a statement of remedial action, noting a response "
+        f"is expected within 21 days (by {deadline}). Firm, factual, courteous; "
+        "no placeholders like [Name]; sign off as 'A resident of Delhi NCR "
+        "(public ledger: https://github.com/mayankJFT/aqi-ncr)'. "
+        "Return only the letter body in markdown, no preamble.\n\n" + table_md
+    )
+    body = json.dumps({
+        "model": "llama-3.3-70b-versatile",
+        "temperature": 0.3,
+        "max_tokens": 1200,
+        "messages": [{"role": "user", "content": prompt}],
+    }).encode()
+    req = urllib.request.Request(
+        "https://api.groq.com/openai/v1/chat/completions", data=body,
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json",
+                 "User-Agent": "Mozilla/5.0 (aqi-ncr complaint drafter)"})
+    try:
+        with urllib.request.urlopen(req, timeout=90) as r:
+            out = json.load(r)
+        return out["choices"][0]["message"]["content"].strip()
+    except Exception as e:
+        print(f"  -> Groq draft failed ({e}); using template body")
+        return None
 breaches = []
 for c in FOCUS_CITIES:
     d = report.get(c, {})
@@ -160,34 +219,51 @@ if os.path.exists("complaints.json"):
 
 if breaches and not any(x["date"] == today for x in complaints):
     deadline = (datetime.now(ist) + timedelta(days=21)).strftime("%Y-%m-%d")
-    doc = [f"# Air quality complaint — {today}", ""]
+    table = ["| City | Pollutant | Reading (ug/m3) | x WHO limit |",
+             "|------|-----------|-----------------|-------------|"]
+    for b in breaches:
+        table.append(f"| {b['city']} | {b['pollutant']} | {b['value']} | {b['multiple']}x |")
+    table_md = "\n".join(table)
+
+    letter = draft_with_groq(table_md, today, deadline)
+    if not letter:
+        letter = (
+            "The following city-wide averages, computed from CPCB real-time "
+            "station data published on data.gov.in, exceeded the WHO 2021 "
+            "24-hour guidelines (PM2.5: 15 ug/m3, PM10: 45 ug/m3).\n\n"
+            "We request acknowledgement of this exceedance and a statement of "
+            "remedial action underway. A response is expected within 21 days, "
+            f"i.e. by {deadline}.")
+
+    doc = [f"# Air quality complaint — DRAFT — {today}", ""]
+    doc.append("> **DRAFT ONLY — not sent.** Review the letter, verify the "
+               "recipient channels below, and file it yourself. The 21-day "
+               "response clock starts when the complaint is actually filed.")
+    doc.append("")
     doc.append("To: " + "; ".join(sorted({AUTHORITIES[b['city']] for b in breaches})))
     doc.append("")
     doc.append("Subject: Documented breach of WHO 24-hour air quality guidelines "
                f"in Delhi NCR on {today}, per CPCB's own monitoring stations")
     doc.append("")
-    doc.append("The following city-wide averages, computed from CPCB real-time "
-               "station data published on data.gov.in, exceeded the WHO 2021 "
-               "24-hour guidelines (PM2.5: 15 ug/m3, PM10: 45 ug/m3):")
+    doc.append(letter)
     doc.append("")
-    doc.append("| City | Pollutant | Reading (ug/m3) | x WHO limit |")
-    doc.append("|------|-----------|-----------------|-------------|")
-    for b in breaches:
-        doc.append(f"| {b['city']} | {b['pollutant']} | {b['value']} | {b['multiple']}x |")
+    doc.append("## Readings cited (generated from CPCB data, not the LLM)")
     doc.append("")
-    doc.append("We request acknowledgement of this exceedance and a statement of "
-               "remedial action underway. Per CPGRAMS grievance-redressal norms, "
-               f"a response is due within 21 days, i.e. by {deadline}.")
+    doc.append(table_md)
     doc.append("")
-    doc.append("This complaint is logged in a public, timestamped ledger: "
-               "https://github.com/mayankJFT/aqi-ncr")
+    doc.append("## Suggested delivery channels — verify before sending")
+    doc.append("")
+    for name, why, url in CHANNELS:
+        doc.append(f"- **{name}** — {why} — {url}")
+    doc.append("")
+    doc.append("Public ledger of every draft: https://github.com/mayankJFT/aqi-ncr")
     os.makedirs("complaints", exist_ok=True)
     with open(f"complaints/{today}.md", "w") as f:
         f.write("\n".join(doc))
     complaints.append({"date": today, "deadline": deadline, "breaches": breaches,
-                       "doc": f"complaints/{today}.md", "status": "awaiting response"})
+                       "doc": f"complaints/{today}.md", "status": "draft"})
     with open("complaints.json", "w") as f:
         json.dump(complaints, f, indent=2)
-    print(f"\nComplaint documented: complaints/{today}.md (response due {deadline})")
+    print(f"\nComplaint draft: complaints/{today}.md (respond-by if filed today: {deadline})")
 
 print("\n".join(lines))
