@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Delhi NCR Air Watch — daily evidence ledger</title>
+<meta name="description" content="Delhi NCR's air, measured every morning against WHO safety limits using the government's own sensors. A public, permanent record.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Mono:wght@300;400;500&family=Tiro+Devanagari+Hindi&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0d0c0a; --paper:#f5f0e8; --gold:#c9a84c; --rust:#b85c38; --teal:#3a7d74;
+    --paper-dim:rgba(245,240,232,.55); --paper-faint:rgba(245,240,232,.28);
+    --gold-line:rgba(201,168,76,.35);
+    --s-pm25:#b3872c; --s-pm10:#1f9e87; /* chart series, validated for dark surface */
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--ink); color:var(--paper);
+    font-family:'Cormorant Garamond',serif; font-size:19px; line-height:1.6;
+    -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  /* grain */
+  body::before{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:3; opacity:.5;
+    background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+  }
+  .frame{
+    position:fixed; inset:14px; border:1px solid var(--gold-line); pointer-events:none; z-index:4;
+  }
+  .mono{font-family:'DM Mono',monospace}
+  .hi{font-family:'Tiro Devanagari Hindi',serif}
+
+  .wrap{max-width:980px; margin:0 auto; padding:0 28px}
+
+  /* ---------- hero ---------- */
+  header{min-height:92vh; display:flex; flex-direction:column; justify-content:center; position:relative; padding:90px 0 60px}
+  .eyebrow{
+    font-family:'DM Mono',monospace; font-size:11px; letter-spacing:.28em; text-transform:uppercase;
+    color:var(--gold); margin-bottom:34px;
+  }
+  h1{
+    font-weight:500; font-size:clamp(44px,7.5vw,84px); line-height:1.02; letter-spacing:-.01em;
+  }
+  h1 em{font-style:italic; color:var(--gold)}
+  .sub-hi{
+    font-family:'Tiro Devanagari Hindi',serif; color:var(--paper-dim);
+    font-size:clamp(17px,2.4vw,22px); margin-top:16px;
+  }
+
+  /* signature: breathing halo */
+  .verdict{
+    position:relative; margin:64px auto 0; width:min(340px,78vw); aspect-ratio:1;
+    display:flex; align-items:center; justify-content:center; text-align:center;
+  }
+  .halo{
+    position:absolute; inset:0; border-radius:50%;
+    background:radial-gradient(circle, var(--halo-core, rgba(184,92,56,.38)) 0%, var(--halo-mid, rgba(184,92,56,.14)) 45%, transparent 70%);
+    animation:breathe 5s ease-in-out infinite;
+    filter:blur(2px);
+  }
+  .halo-ring{
+    position:absolute; inset:12%; border-radius:50%;
+    border:1px solid var(--gold-line);
+  }
+  @keyframes breathe{
+    0%,100%{transform:scale(.86); opacity:.75}
+    45%{transform:scale(1.06); opacity:1}
+    60%{transform:scale(1.06); opacity:1}
+  }
+  .verdict-inner{position:relative; z-index:1}
+  .big-mult{
+    font-size:clamp(72px,15vw,120px); font-weight:500; line-height:1; letter-spacing:-.02em;
+  }
+  .big-mult .x{font-size:.45em; font-style:italic; color:var(--gold)}
+  .verdict-label{
+    font-family:'DM Mono',monospace; font-size:11.5px; letter-spacing:.22em; text-transform:uppercase;
+    color:var(--paper-dim); margin-top:14px; line-height:1.9;
+  }
+  .verdict-city{font-style:italic; font-size:clamp(20px,3vw,26px); color:var(--paper); margin-top:4px}
+  .scrollhint{
+    position:absolute; bottom:26px; left:50%; transform:translateX(-50%);
+    font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.3em; color:var(--paper-faint);
+    text-transform:uppercase;
+  }
+
+  /* ---------- sections ---------- */
+  section{padding:74px 0}
+  .sec-head{display:flex; align-items:baseline; gap:18px; border-bottom:1px solid var(--gold-line); padding-bottom:14px; margin-bottom:38px}
+  .sec-head h2{font-weight:500; font-style:italic; font-size:clamp(26px,4vw,34px)}
+  .sec-head .tag{font-family:'DM Mono',monospace; font-size:10.5px; letter-spacing:.25em; text-transform:uppercase; color:var(--gold); margin-left:auto; white-space:nowrap}
+
+  /* city ledger cards */
+  .cities{display:grid; grid-template-columns:1fr 1fr; gap:26px}
+  .city-card{border:1px solid var(--gold-line); padding:30px 26px; position:relative; background:rgba(245,240,232,.02)}
+  .city-card h3{font-weight:500; font-size:30px; font-style:italic; margin-bottom:2px}
+  .city-date{font-family:'DM Mono',monospace; font-size:10.5px; letter-spacing:.2em; color:var(--paper-faint); text-transform:uppercase; margin-bottom:24px}
+  .prow{margin-bottom:18px}
+  .prow-top{display:flex; justify-content:space-between; align-items:baseline; font-family:'DM Mono',monospace; font-size:12.5px; margin-bottom:7px}
+  .pname{letter-spacing:.12em; color:var(--paper-dim)}
+  .pval{color:var(--paper)}
+  .pval .unit{color:var(--paper-faint); font-size:10.5px}
+  .bar{height:3px; background:rgba(245,240,232,.1); position:relative; overflow:visible}
+  .bar-fill{position:absolute; left:0; top:0; bottom:0; max-width:100%}
+  .bar-fill.ok{background:var(--teal)}
+  .bar-fill.breach{background:var(--rust)}
+  .who-mark{position:absolute; top:-4px; bottom:-4px; width:1px; background:var(--gold); opacity:.9}
+  .who-note{font-family:'DM Mono',monospace; font-size:10px; color:var(--paper-faint); margin-top:6px; letter-spacing:.06em}
+  .flag{font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.22em; padding:3px 8px; border:1px solid}
+  .flag.breach{color:var(--rust); border-color:rgba(184,92,56,.5)}
+  .flag.ok{color:var(--teal); border-color:rgba(58,125,116,.5)}
+  .others{display:grid; grid-template-columns:repeat(2,1fr); gap:8px 20px; margin-top:24px; padding-top:18px; border-top:1px dashed rgba(245,240,232,.12)}
+  .others .o{display:flex; justify-content:space-between; font-family:'DM Mono',monospace; font-size:11.5px; color:var(--paper-dim)}
+  .others .o b{color:var(--paper); font-weight:400}
+
+  /* ---------- history charts ---------- */
+  .legend{display:flex; gap:22px; align-items:center; margin-bottom:26px; font-family:'DM Mono',monospace; font-size:11.5px; letter-spacing:.12em; color:var(--paper-dim)}
+  .legend .chip{display:inline-block; width:14px; height:3px; margin-right:8px; vertical-align:middle; border-radius:2px}
+  .legend .who-chip{display:inline-block; width:14px; height:0; border-top:1px dashed var(--gold); margin-right:8px; vertical-align:middle}
+  .charts{display:grid; grid-template-columns:1fr 1fr; gap:26px}
+  .chart-card{border:1px solid var(--gold-line); padding:22px 20px 14px; background:rgba(245,240,232,.02)}
+  .chart-card h3{font-weight:500; font-size:24px; font-style:italic; margin-bottom:12px}
+  .chart-card svg{display:block; width:100%; height:auto; overflow:visible}
+  .chart-note{font-family:'DM Mono',monospace; font-size:10px; color:var(--paper-faint); margin-top:18px; letter-spacing:.06em}
+  .viz-tip{
+    position:fixed; z-index:9; pointer-events:none; display:none;
+    background:#1a1813; border:1px solid var(--gold-line); padding:10px 12px;
+    font-family:'DM Mono',monospace; font-size:11px; line-height:1.8; color:var(--paper);
+    max-width:240px;
+  }
+  .viz-tip .tip-date{color:var(--gold); letter-spacing:.12em; text-transform:uppercase; font-size:10px}
+  .viz-tip .tip-row{display:flex; justify-content:space-between; gap:16px; color:var(--paper-dim)}
+  .viz-tip .tip-row b{color:var(--paper); font-weight:400}
+  .tableview{margin-top:34px}
+  .tableview summary{font-family:'DM Mono',monospace; font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--paper-dim); cursor:pointer}
+  .tableview summary:hover{color:var(--gold)}
+  .tableview table{width:100%; border-collapse:collapse; margin-top:16px; font-family:'DM Mono',monospace; font-size:11.5px}
+  .tableview th,.tableview td{text-align:right; padding:7px 10px; border-bottom:1px dashed rgba(245,240,232,.12); color:var(--paper-dim)}
+  .tableview th{color:var(--gold); font-weight:400; letter-spacing:.1em; text-transform:uppercase; font-size:10px}
+  .tableview th:first-child,.tableview td:first-child{text-align:left}
+  .tableview td b{color:var(--paper); font-weight:400}
+
+  /* ranking */
+  .rank-list{list-style:none; counter-reset:rk}
+  .rank-list li{
+    display:grid; grid-template-columns:44px 1fr auto; gap:16px; align-items:center;
+    padding:13px 4px; border-bottom:1px dashed rgba(245,240,232,.12);
+  }
+  .rk-num{font-family:'DM Mono',monospace; font-size:12px; color:var(--gold)}
+  .rk-city{font-size:22px; font-weight:500}
+  .rk-city.is-focus{font-style:italic; color:var(--gold)}
+  .rk-bar-wrap{display:flex; align-items:center; gap:12px; min-width:150px; justify-content:flex-end}
+  .rk-bar{height:3px; background:var(--rust); opacity:.85}
+  .rk-val{font-family:'DM Mono',monospace; font-size:12px; color:var(--paper-dim); white-space:nowrap}
+
+  /* why */
+  .why p{font-size:clamp(21px,2.8vw,26px); line-height:1.55; max-width:46ch}
+  .why p + p{margin-top:22px}
+  .why em{color:var(--gold)}
+  .why .hi{display:block; margin-top:30px; color:var(--paper-dim); font-size:19px}
+
+  /* method + footer */
+  .method{font-family:'DM Mono',monospace; font-size:12.5px; line-height:2.1; color:var(--paper-dim); max-width:64ch}
+  .method a{color:var(--gold)}
+  footer{padding:56px 0 70px; border-top:1px solid var(--gold-line); margin-top:40px}
+  .foot-row{display:flex; flex-wrap:wrap; gap:14px 26px; align-items:center; font-family:'DM Mono',monospace; font-size:11.5px; letter-spacing:.14em; text-transform:uppercase}
+  .foot-row a{color:var(--paper-dim); text-decoration:none; border-bottom:1px solid transparent; padding-bottom:2px}
+  .foot-row a:hover{color:var(--gold); border-color:var(--gold-line)}
+  .foot-sign{margin-top:30px; font-style:italic; font-size:17px; color:var(--paper-faint)}
+
+  a:focus-visible, button:focus-visible, summary:focus-visible{outline:2px solid var(--gold); outline-offset:3px}
+  .stale{font-family:'DM Mono',monospace; font-size:11px; color:var(--rust); letter-spacing:.15em; margin-top:20px; display:none}
+
+  @media (max-width:680px){
+    .cities,.charts{grid-template-columns:1fr}
+    .rank-list li{grid-template-columns:34px 1fr auto}
+    .rk-bar-wrap{min-width:90px}
+    .frame{inset:8px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .halo{animation:none; transform:scale(1)}
+    html{scroll-behavior:auto}
+  }
+</style>
+</head>
+<body>
+<div class="frame" aria-hidden="true"></div>
+
+<header class="wrap">
+  <p class="eyebrow" id="dateline">Daily evidence ledger · CPCB sensors · loading…</p>
+  <h1>The air over <em>Delhi NCR</em>,<br>measured every morning.</h1>
+  <p class="sub-hi hi">दिल्ली की हवा — रोज़ मापी गई, रोज़ दर्ज की गई।</p>
+
+  <div class="verdict" id="verdict" role="img" aria-label="Today's PM2.5 level in Delhi compared to the WHO safe limit">
+    <div class="halo" id="halo"></div>
+    <div class="halo-ring" aria-hidden="true"></div>
+    <div class="verdict-inner">
+      <div class="big-mult"><span id="mult">—</span><span class="x">×</span></div>
+      <div class="verdict-label">the WHO safe limit<br>PM2.5 · 24-hour guideline</div>
+      <div class="verdict-city" id="verdict-city">Delhi, today</div>
+    </div>
+  </div>
+  <p class="stale" id="stale">⚠ could not load today's data — showing last saved reading</p>
+  <div class="scrollhint" aria-hidden="true">scroll — the record continues</div>
+</header>
+
+<main class="wrap">
+
+  <section aria-labelledby="readings-h">
+    <div class="sec-head">
+      <h2 id="readings-h">Today's readings</h2>
+      <span class="tag">Government sensors · WHO benchmark</span>
+    </div>
+    <div class="cities" id="cities"></div>
+    <p class="who-note" style="margin-top:22px">Gold line marks the WHO 24-hour guideline — PM2.5: 15 µg/m³ · PM10: 45 µg/m³. Bars past it are air the WHO considers unsafe to breathe for a day.</p>
+  </section>
+
+  <section aria-labelledby="history-h">
+    <div class="sec-head">
+      <h2 id="history-h">The record so far</h2>
+      <span class="tag">Every morning · vs WHO limit</span>
+    </div>
+    <div class="legend" aria-hidden="true">
+      <span><span class="chip" style="background:var(--s-pm25)"></span>PM2.5</span>
+      <span><span class="chip" style="background:var(--s-pm10)"></span>PM10</span>
+      <span><span class="who-chip"></span>WHO limit (1×)</span>
+    </div>
+    <div class="charts" id="charts"></div>
+    <p class="chart-note">Each point is one morning's city-wide station average, shown as a multiple of that pollutant's WHO 24-hour guideline. All cities share the same scale. The record grows one point per day.</p>
+    <details class="tableview">
+      <summary>Table view — full history</summary>
+      <div id="history-table"></div>
+    </details>
+  </section>
+
+  <section aria-labelledby="rank-h">
+    <div class="sec-head">
+      <h2 id="rank-h">The region's heaviest air today</h2>
+      <span class="tag">Delhi · UP · Haryana — PM2.5 worst ten</span>
+    </div>
+    <ol class="rank-list" id="ranking"></ol>
+  </section>
+
+  <section class="why" aria-labelledby="why-h">
+    <div class="sec-head">
+      <h2 id="why-h">Why this ledger exists</h2>
+      <span class="tag">The record is the pressure</span>
+    </div>
+    <p>Everyone knows Delhi's air in November. This ledger is about the other ten months — the “clean” monsoon mornings when the air is still at <em>several times the safe limit</em>, and nobody calls it an emergency.</p>
+    <p>So a machine reads the government's own sensors every morning at seven, holds them against the standard the WHO says a human body can bear, and writes it down. Publicly. Permanently. Every single day.</p>
+    <p>Opinions can be dismissed. <em>A daily record cannot.</em></p>
+    <span class="hi">यह रिकॉर्ड अगली पीढ़ियों के लिए है।</span>
+  </section>
+
+  <section aria-labelledby="method-h">
+    <div class="sec-head">
+      <h2 id="method-h">Method</h2>
+      <span class="tag">Open data · open code</span>
+    </div>
+    <p class="method">
+      Source: Central Pollution Control Board real-time monitoring, via the
+      <a href="https://data.gov.in" rel="noopener">Open Government Data Platform</a>.
+      Readings are pulled daily at 07:00 IST, station values averaged per city,
+      sensor artefacts (&le;0 or &gt;1500 µg/m³) discarded, then benchmarked against
+      WHO 2021 24-hour air quality guidelines. Every report is kept, day after day.
+      Adapted from the open-source
+      <a href="https://github.com/shamathakur77/nashik-air-watch" rel="noopener">nashik-air-watch</a> project.
+      Nothing to trust; everything to verify.
+    </p>
+  </section>
+
+</main>
+
+<footer class="wrap">
+  <div class="foot-row">
+    <a href="https://github.com/shamathakur77/nashik-air-watch" rel="noopener">Original project — nashik-air-watch</a>
+    <a href="https://data.gov.in" rel="noopener">Data — data.gov.in</a>
+  </div>
+  <p class="foot-sign">A fork of a watchman built in one afternoon. The record continues here.</p>
+</footer>
+
+<div class="viz-tip" id="viz-tip" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  var WHO = {"PM2.5":15, "PM10":45};
+  var FOCUS = ["Delhi","Noida","Ghaziabad","Gurugram","Faridabad"];
+  var SERIES = [
+    {key:"PM2.5", color:"var(--s-pm25)", hex:"#b3872c"},
+    {key:"PM10",  color:"var(--s-pm10)", hex:"#1f9e87"}
+  ];
+  var FALLBACK = {"date": "2026-08-10", "cities": {"Delhi": {"OZONE": 19.8, "PM2.5": 61.9, "NO2": 29.6, "PM10": 84.5, "CO": 51.0, "SO2": 15.2, "NH3": 8.3}, "Noida": {"SO2": 8.5, "PM10": 89.0, "CO": 31.2, "PM2.5": 75.0, "NO2": 32.5, "OZONE": 33.8, "NH3": 16.0}, "Ghaziabad": {"OZONE": 19.0, "NO2": 24.7, "NH3": 8.0, "CO": 44.2, "PM10": 88.4, "PM2.5": 69.6, "SO2": 7.2}, "Gurugram": {"PM10": 90.0, "OZONE": 18.2, "NH3": 11.0, "CO": 33.2, "NO2": 17.7, "PM2.5": 91.5, "SO2": 11.0}, "Faridabad": {"NH3": 9.7, "PM10": 106.7, "SO2": 7.7, "PM2.5": 104.0, "NO2": 31.0, "OZONE": 13.3, "CO": 53.0}}, "ranking": [["Charkhi Dadri", 156.0], ["Khora", 123.0], ["Manesar", 116.0], ["Raebareli", 113.0], ["Faridabad", 104.0], ["Dharuhera", 97.0], ["Gurugram", 91.5], ["Kanpur", 82.0], ["Noida", 75.0], ["Agra", 74.5]]};
+
+  function fmtDate(iso){
+    try{
+      var d = new Date(iso + "T00:00:00");
+      return d.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});
+    }catch(e){ return iso; }
+  }
+  function fmtShort(iso){
+    try{
+      var d = new Date(iso + "T00:00:00");
+      return d.toLocaleDateString("en-GB",{day:"2-digit",month:"short"});
+    }catch(e){ return iso; }
+  }
+
+  function render(data, stale){
+    if(stale){ document.getElementById("stale").style.display="block"; }
+    document.getElementById("dateline").textContent =
+      "Daily evidence ledger · CPCB sensors · " + fmtDate(data.date);
+
+    // verdict halo (Delhi PM2.5)
+    var delhi = data.cities["Delhi"] || {};
+    var pm = delhi["PM2.5"];
+    var multEl = document.getElementById("mult");
+    var halo = document.getElementById("halo");
+    if(typeof pm === "number"){
+      var mult = pm / WHO["PM2.5"];
+      multEl.textContent = mult.toFixed(1);
+      if(mult > 1){
+        halo.style.setProperty("--halo-core","rgba(184,92,56,.40)");
+        halo.style.setProperty("--halo-mid","rgba(184,92,56,.15)");
+      }else{
+        halo.style.setProperty("--halo-core","rgba(58,125,116,.40)");
+        halo.style.setProperty("--halo-mid","rgba(58,125,116,.15)");
+      }
+    }else{
+      multEl.textContent = "—";
+      document.getElementById("verdict-city").textContent = "Delhi · no data today";
+    }
+
+    // city cards
+    var host = document.getElementById("cities");
+    host.innerHTML = "";
+    FOCUS.forEach(function(city){
+      var d = data.cities[city];
+      var card = document.createElement("article");
+      card.className = "city-card";
+      if(!d){
+        card.innerHTML = "<h3>"+city+"</h3><p class='city-date'>no data reported today</p>";
+        host.appendChild(card); return;
+      }
+      var html = "<h3>"+city+"</h3><p class='city-date'>"+fmtDate(data.date)+" · station average</p>";
+      ["PM2.5","PM10"].forEach(function(p){
+        if(typeof d[p] !== "number") return;
+        var limit = WHO[p], v = d[p], mult = v/limit;
+        var breach = v > limit;
+        // scale: WHO limit sits at 20% of bar width (NCR multiples run high)
+        var pct = Math.min(mult*20, 100);
+        html += "<div class='prow'>"
+          + "<div class='prow-top'><span class='pname'>"+p+"</span>"
+          + "<span><span class='flag "+(breach?"breach":"ok")+"'>"+(breach?"breach":"ok")+"</span>"
+          + " &nbsp;<span class='pval'>"+v+" <span class='unit'>µg/m³ · "+mult.toFixed(1)+"×</span></span></span></div>"
+          + "<div class='bar'><div class='bar-fill "+(breach?"breach":"ok")+"' style='width:"+pct+"%'></div>"
+          + "<div class='who-mark' style='left:20%'></div></div>"
+          + "</div>";
+      });
+      var others = Object.keys(d).filter(function(p){return !(p in WHO);}).sort();
+      if(others.length){
+        html += "<div class='others'>";
+        others.forEach(function(p){ html += "<div class='o'><span>"+p+"</span><b>"+d[p]+"</b></div>"; });
+        html += "</div>";
+      }
+      card.innerHTML = html;
+      host.appendChild(card);
+    });
+
+    // ranking
+    var list = document.getElementById("ranking");
+    list.innerHTML = "";
+    var max = (data.ranking && data.ranking.length) ? data.ranking[0][1] : 1;
+    (data.ranking || []).forEach(function(row, i){
+      var li = document.createElement("li");
+      var isFocus = FOCUS.indexOf(row[0]) !== -1;
+      li.innerHTML = "<span class='rk-num'>"+String(i+1).padStart(2,"0")+"</span>"
+        + "<span class='rk-city"+(isFocus?" is-focus":"")+"'>"+row[0]+"</span>"
+        + "<span class='rk-bar-wrap'><span class='rk-bar' style='width:"+Math.max(row[1]/max*120,8)+"px'></span>"
+        + "<span class='rk-val'>"+row[1]+" µg/m³</span></span>";
+      list.appendChild(li);
+    });
+  }
+
+  /* ---------- history small multiples ---------- */
+  var tipEl = document.getElementById("viz-tip");
+
+  function renderHistory(history){
+    var dates = Object.keys(history).sort();
+    if(!dates.length) return;
+
+    // shared y scale: max multiple across every city, day, series
+    var maxMult = 2;
+    dates.forEach(function(dt){
+      FOCUS.forEach(function(city){
+        var d = history[dt][city]; if(!d) return;
+        SERIES.forEach(function(s){
+          if(typeof d[s.key] === "number") maxMult = Math.max(maxMult, d[s.key]/WHO[s.key]);
+        });
+      });
+    });
+    var yMax = Math.ceil(maxMult + 0.4);
+
+    var W = 320, H = 170, PL = 30, PR = 44, PT = 10, PB = 24;
+    var iw = W-PL-PR, ih = H-PT-PB;
+    function yOf(m){ return PT + ih - (m/yMax)*ih; }
+    function xOf(i){ return dates.length === 1 ? PL + iw/2 : PL + (i/(dates.length-1))*iw; }
+
+    var host = document.getElementById("charts");
+    host.innerHTML = "";
+
+    FOCUS.forEach(function(city){
+      var card = document.createElement("article");
+      card.className = "chart-card";
+      var svg = "<svg viewBox='0 0 "+W+" "+H+"' role='img' aria-label='"+city+" — daily PM2.5 and PM10 as multiples of the WHO limit'>";
+
+      // recessive grid: integer multiples
+      for(var g=1; g<=yMax; g++){
+        var gy = yOf(g);
+        svg += "<line x1='"+PL+"' y1='"+gy+"' x2='"+(PL+iw)+"' y2='"+gy+"' stroke='rgba(245,240,232,.07)' stroke-width='1'/>";
+        svg += "<text x='"+(PL-8)+"' y='"+(gy+3)+"' text-anchor='end' font-family='DM Mono,monospace' font-size='9' fill='rgba(245,240,232,.28)'>"+g+"×</text>";
+      }
+      // WHO reference line at 1×
+      var wy = yOf(1);
+      svg += "<line x1='"+PL+"' y1='"+wy+"' x2='"+(PL+iw)+"' y2='"+wy+"' stroke='#c9a84c' stroke-width='1' stroke-dasharray='3 4' opacity='.8'/>";
+
+      // series
+      var cityHasData = false;
+      SERIES.forEach(function(s){
+        var pts = [];
+        dates.forEach(function(dt, i){
+          var d = history[dt][city];
+          if(d && typeof d[s.key] === "number") pts.push([xOf(i), yOf(d[s.key]/WHO[s.key]), i]);
+        });
+        if(!pts.length) return;
+        cityHasData = true;
+        if(pts.length > 1){
+          var path = pts.map(function(p,j){ return (j?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1); }).join(" ");
+          svg += "<path d='"+path+"' fill='none' stroke='"+s.hex+"' stroke-width='2' stroke-linejoin='round' stroke-linecap='round'/>";
+        }
+        pts.forEach(function(p){
+          svg += "<circle cx='"+p[0].toFixed(1)+"' cy='"+p[1].toFixed(1)+"' r='4' fill='"+s.hex+"' stroke='#0d0c0a' stroke-width='2'/>";
+        });
+        // direct label at last point, text token color with series tick
+        var last = pts[pts.length-1];
+        svg += "<text x='"+(last[0]+9)+"' y='"+(last[1]+3)+"' font-family='DM Mono,monospace' font-size='9' fill='rgba(245,240,232,.55)'>"+s.key+"</text>";
+      });
+
+      if(!cityHasData){
+        svg += "<text x='"+(PL+iw/2)+"' y='"+(PT+ih/2)+"' text-anchor='middle' font-family='DM Mono,monospace' font-size='10' letter-spacing='2' fill='rgba(245,240,232,.28)'>NO PM DATA RECORDED YET</text>";
+      }
+
+      // x labels: first and last date only (recessive)
+      svg += "<text x='"+PL+"' y='"+(H-6)+"' font-family='DM Mono,monospace' font-size='9' fill='rgba(245,240,232,.28)'>"+fmtShort(dates[0])+"</text>";
+      if(dates.length > 1){
+        svg += "<text x='"+(PL+iw)+"' y='"+(H-6)+"' text-anchor='end' font-family='DM Mono,monospace' font-size='9' fill='rgba(245,240,232,.28)'>"+fmtShort(dates[dates.length-1])+"</text>";
+      }
+
+      // crosshair (hidden until hover)
+      svg += "<line class='xh' x1='0' y1='"+PT+"' x2='0' y2='"+(PT+ih)+"' stroke='rgba(245,240,232,.25)' stroke-width='1' style='display:none'/>";
+      // hover capture
+      svg += "<rect class='hover-zone' x='"+PL+"' y='"+PT+"' width='"+iw+"' height='"+ih+"' fill='transparent'/>";
+      svg += "</svg>";
+
+      card.innerHTML = "<h3>"+city+"</h3>" + svg;
+      host.appendChild(card);
+
+      var svgEl = card.querySelector("svg");
+      var zone = card.querySelector(".hover-zone");
+      var xh = card.querySelector(".xh");
+      function idxFromEvent(ev){
+        var r = svgEl.getBoundingClientRect();
+        var px = (ev.clientX - r.left) * (W / r.width);
+        if(dates.length === 1) return 0;
+        var t = (px - PL) / iw;
+        return Math.max(0, Math.min(dates.length-1, Math.round(t*(dates.length-1))));
+      }
+      zone.addEventListener("mousemove", function(ev){
+        var i = idxFromEvent(ev);
+        var cx = xOf(i);
+        xh.setAttribute("x1", cx); xh.setAttribute("x2", cx);
+        xh.style.display = "";
+        var d = history[dates[i]][city] || {};
+        var html = "<div class='tip-date'>"+city+" · "+fmtShort(dates[i])+"</div>";
+        SERIES.forEach(function(s){
+          if(typeof d[s.key] !== "number") return;
+          var m = d[s.key]/WHO[s.key];
+          html += "<div class='tip-row'><span>"+s.key+"</span><b>"+d[s.key]+" µg/m³ · "+m.toFixed(1)+"×</b></div>";
+        });
+        tipEl.innerHTML = html;
+        tipEl.style.display = "block";
+        var tx = ev.clientX + 14, ty = ev.clientY + 14;
+        if(tx + 250 > window.innerWidth) tx = ev.clientX - 254;
+        if(ty + 90 > window.innerHeight) ty = ev.clientY - 100;
+        tipEl.style.left = tx + "px"; tipEl.style.top = ty + "px";
+      });
+      zone.addEventListener("mouseleave", function(){
+        xh.style.display = "none";
+        tipEl.style.display = "none";
+      });
+    });
+
+    // table view
+    var tbl = "<table><thead><tr><th>Date</th>";
+    FOCUS.forEach(function(c){ tbl += "<th colspan='2'>"+c+"</th>"; });
+    tbl += "</tr><tr><th></th>";
+    FOCUS.forEach(function(){ tbl += "<th>PM2.5</th><th>PM10</th>"; });
+    tbl += "</tr></thead><tbody>";
+    dates.forEach(function(dt){
+      tbl += "<tr><td>"+fmtShort(dt)+"</td>";
+      FOCUS.forEach(function(c){
+        var d = history[dt][c] || {};
+        ["PM2.5","PM10"].forEach(function(p){
+          tbl += "<td>"+(typeof d[p]==="number" ? "<b>"+d[p]+"</b>" : "—")+"</td>";
+        });
+      });
+      tbl += "</tr>";
+    });
+    tbl += "</tbody></table>";
+    document.getElementById("history-table").innerHTML = tbl;
+  }
+
+  var latestReq = fetch("latest.json", {cache:"no-store"})
+    .then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); });
+  var historyReq = fetch("history.json", {cache:"no-store"})
+    .then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); });
+
+  latestReq
+    .then(function(d){ render(d, false); })
+    .catch(function(){ render(FALLBACK, true); });
+  historyReq
+    .then(renderHistory)
+    .catch(function(){
+      var h = {}; h[FALLBACK.date] = FALLBACK.cities;
+      renderHistory(h);
+    });
+})();
+</script>
+</body>
+</html>
