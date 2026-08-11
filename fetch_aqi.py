@@ -134,4 +134,60 @@ history[today] = {c: report[c] for c in FOCUS_CITIES if c in report}
 with open("history.json", "w") as f:
     json.dump(dict(sorted(history.items())), f, indent=2)
 
+# --- complaint ledger: one documented complaint per breach day, 21-day deadline ---
+AUTHORITIES = {
+    "Delhi": "Delhi Pollution Control Committee (DPCC) / CPCB",
+    "Noida": "Uttar Pradesh Pollution Control Board (UPPCB) / CPCB",
+    "Ghaziabad": "Uttar Pradesh Pollution Control Board (UPPCB) / CPCB",
+    "Gurugram": "Haryana State Pollution Control Board (HSPCB) / CPCB",
+    "Faridabad": "Haryana State Pollution Control Board (HSPCB) / CPCB",
+}
+breaches = []
+for c in FOCUS_CITIES:
+    d = report.get(c, {})
+    for p in ("PM2.5", "PM10"):
+        if p in d and d[p] > WHO_LIMITS[p]:
+            breaches.append({"city": c, "pollutant": p, "value": d[p],
+                             "multiple": round(d[p] / WHO_LIMITS[p], 1)})
+
+complaints = []
+if os.path.exists("complaints.json"):
+    try:
+        with open("complaints.json") as f:
+            complaints = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        pass
+
+if breaches and not any(x["date"] == today for x in complaints):
+    deadline = (datetime.now(ist) + timedelta(days=21)).strftime("%Y-%m-%d")
+    doc = [f"# Air quality complaint — {today}", ""]
+    doc.append("To: " + "; ".join(sorted({AUTHORITIES[b['city']] for b in breaches})))
+    doc.append("")
+    doc.append("Subject: Documented breach of WHO 24-hour air quality guidelines "
+               f"in Delhi NCR on {today}, per CPCB's own monitoring stations")
+    doc.append("")
+    doc.append("The following city-wide averages, computed from CPCB real-time "
+               "station data published on data.gov.in, exceeded the WHO 2021 "
+               "24-hour guidelines (PM2.5: 15 ug/m3, PM10: 45 ug/m3):")
+    doc.append("")
+    doc.append("| City | Pollutant | Reading (ug/m3) | x WHO limit |")
+    doc.append("|------|-----------|-----------------|-------------|")
+    for b in breaches:
+        doc.append(f"| {b['city']} | {b['pollutant']} | {b['value']} | {b['multiple']}x |")
+    doc.append("")
+    doc.append("We request acknowledgement of this exceedance and a statement of "
+               "remedial action underway. Per CPGRAMS grievance-redressal norms, "
+               f"a response is due within 21 days, i.e. by {deadline}.")
+    doc.append("")
+    doc.append("This complaint is logged in a public, timestamped ledger: "
+               "https://github.com/mayankJFT/aqi-ncr")
+    os.makedirs("complaints", exist_ok=True)
+    with open(f"complaints/{today}.md", "w") as f:
+        f.write("\n".join(doc))
+    complaints.append({"date": today, "deadline": deadline, "breaches": breaches,
+                       "doc": f"complaints/{today}.md", "status": "awaiting response"})
+    with open("complaints.json", "w") as f:
+        json.dump(complaints, f, indent=2)
+    print(f"\nComplaint documented: complaints/{today}.md (response due {deadline})")
+
 print("\n".join(lines))
