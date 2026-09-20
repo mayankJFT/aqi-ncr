@@ -2564,5 +2564,73 @@
     ],
     "doc": "complaints/2026-09-19.md",
     "status": "draft"
+  },
+  {
+    "date": "2026-09-20",
+    "deadline": "2026-10-11",
+    "breaches": [
+      {
+        "city": "Delhi",
+        "pollutant": "PM2.5",
+        "value": 141.4,
+        "multiple": 9.4
+      },
+      {
+        "city": "Delhi",
+        "pollutant": "PM10",
+        "value": 144.5,
+        "multiple": 3.2
+      },
+      {
+        "city": "Noida",
+        "pollutant": "PM2.5",
+        "value": 196.5,
+        "multiple": 13.1
+      },
+      {
+        "city": "Noida",
+        "pollutant": "PM10",
+        "value": 193.2,
+        "multiple": 4.3
+      },
+      {
+        "city": "Ghaziabad",
+        "pollutant": "PM2.5",
+        "value": 111.8,
+        "multiple": 7.5
+      },
+      {
+        "city": "Ghaziabad",
+        "pollutant": "PM10",
+        "value": 118.4,
+        "multiple": 2.6
+      },
+      {
+        "city": "Gurugram",
+        "pollutant": "PM2.5",
+        "value": 196.8,
+        "multiple": 13.1
+      },
+      {
+        "city": "Gurugram",
+        "pollutant": "PM10",
+        "value": 162.2,
+        "multiple": 3.6
+      },
+      {
+        "city": "Faridabad",
+        "pollutant": "PM2.5",
+        "value": 145.5,
+        "multiple": 9.7
+      },
+      {
+        "city": "Faridabad",
+        "pollutant": "PM10",
+        "value": 142.0,
+        "multiple": 3.2
+      }
+    ],
+    "doc": "complaints/2026-09-20.md",
+    "status": "draft"
   }
 ]
